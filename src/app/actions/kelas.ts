@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   createKelas,
   deleteKelas,
+  deleteKelasBulk,
   getJenjang,
   getKelas,
   hasJurusan,
@@ -16,6 +17,7 @@ import {
   tingkatOptions,
   updateKelas,
   waliIsGuru,
+  type BulkDeleteKelasResult,
 } from "@/lib/kelas";
 import type { KelasPageData } from "@/lib/kelas-shared";
 import { requireRole } from "@/lib/session";
@@ -172,4 +174,28 @@ export async function deleteKelasAction(
   revalidatePath(LIST_PATH);
   revalidatePath("/admin/siswa");
   return { error: null, done: true };
+}
+
+/** Server Action: bulk delete classes, skipping ones that still hold students. */
+export async function deleteKelasBulkAction(
+  ids: number[],
+): Promise<BulkDeleteKelasResult> {
+  await requireRole("admin");
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, deletedCount: 0, error: "Pilih minimal satu kelas." };
+  }
+
+  try {
+    const result = await deleteKelasBulk(ids);
+    revalidatePath(LIST_PATH);
+    revalidatePath("/admin/siswa");
+    return result;
+  } catch (error) {
+    return {
+      ok: false,
+      deletedCount: 0,
+      error: error instanceof Error ? error.message : "Gagal menghapus kelas.",
+    };
+  }
 }

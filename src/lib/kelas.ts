@@ -240,3 +240,41 @@ export async function deleteKelas(id: number): Promise<DeleteResult> {
 
   return { ok: false, error: "Kelas tidak ditemukan." };
 }
+
+export type BulkDeleteKelasResult = {
+  ok: boolean;
+  deletedCount: number;
+  skippedClasses?: string[];
+  error?: string;
+};
+
+export async function deleteKelasBulk(ids: number[]): Promise<BulkDeleteKelasResult> {
+  if (ids.length === 0) return { ok: true, deletedCount: 0 };
+
+  const { rows: occupiedRows } = await pool.query<{ id: number; nama: string; siswa: number }>(
+    `select k.id, k.nama, count(u.id)::int as siswa
+       from kelas k
+       join "user" u on u.kelas_id = k.id and u.role = 'siswa'
+      where k.id = any($1::int[])
+      group by k.id, k.nama`,
+    [ids],
+  );
+
+  const occupiedIds = new Set(occupiedRows.map((r) => r.id));
+  const deletableIds = ids.filter((id) => !occupiedIds.has(id));
+
+  let deletedCount = 0;
+  if (deletableIds.length > 0) {
+    const res = await pool.query(
+      `delete from kelas where id = any($1::int[])`,
+      [deletableIds],
+    );
+    deletedCount = res.rowCount ?? 0;
+  }
+
+  return {
+    ok: true,
+    deletedCount,
+    skippedClasses: occupiedRows.map((r) => `${r.nama} (${r.siswa} siswa)`),
+  };
+}

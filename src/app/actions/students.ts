@@ -6,6 +6,7 @@ import { hashPassword } from "better-auth/crypto";
 
 import {
   deletePerson,
+  deletePeopleBulk,
   getPerson,
   listPeople,
   resetPassword,
@@ -138,4 +139,26 @@ export async function deleteStudentAction(formData: FormData) {
   await deletePerson(id, "siswa");
 
   revalidatePath(LIST_PATH);
+}
+
+/** Server Action: bulk delete students. */
+export async function deleteStudentsBulkAction(
+  ids: string[],
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  await requireRole("admin");
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Pilih minimal satu siswa untuk dihapus." };
+  }
+
+  try {
+    const count = await deletePeopleBulk(ids, "siswa");
+    revalidatePath(LIST_PATH);
+    return { ok: true, count };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Gagal menghapus siswa.",
+    };
+  }
 }

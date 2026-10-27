@@ -254,3 +254,24 @@ export async function deletePerson(id: string, role: Role): Promise<void> {
   await pool.query(`delete from account where "userId" = $1`, [id]);
   await pool.query(`delete from "user" where id = $1 and role = $2`, [id, role]);
 }
+
+export async function deletePeopleBulk(ids: string[], role: Role): Promise<number> {
+  if (ids.length === 0) return 0;
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query(`delete from session where "userId" = any($1::text[])`, [ids]);
+    await client.query(`delete from account where "userId" = any($1::text[])`, [ids]);
+    const res = await client.query(
+      `delete from "user" where id = any($1::text[]) and role = $2`,
+      [ids, role],
+    );
+    await client.query("commit");
+    return res.rowCount ?? 0;
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}

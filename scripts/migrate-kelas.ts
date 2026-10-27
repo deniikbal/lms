@@ -27,6 +27,15 @@ process.loadEnvFile(".env");
 /** `jenjang` drives which `tingkat` values the class form offers. */
 const JENJANG = "SMK";
 
+const PENGATURAN_SEKOLAH = [
+  { kunci: "jenjang", nilai: JENJANG },
+  { kunci: "nama_sekolah", nilai: "SMK Nusantara Cendekia" },
+  { kunci: "alamat", nilai: "Jl. Pendidikan No. 17, Yogyakarta" },
+  { kunci: "kepala_sekolah", nilai: "Dra. Sri Wahyuni, M.Pd." },
+  { kunci: "kkm", nilai: "75" },
+  { kunci: "npsn", nilai: "20123456" },
+];
+
 const JURUSAN = [
   { kode: "TKJ", nama: "Teknik Komputer dan Jaringan" },
   { kode: "AKL", nama: "Akuntansi dan Keuangan Lembaga" },
@@ -217,6 +226,15 @@ async function main() {
     `);
 
     // --- seed ---------------------------------------------------------------
+    for (const s of PENGATURAN_SEKOLAH) {
+      await client.query(
+        `insert into pengaturan (kunci, nilai) values ($1, $2)
+         on conflict (kunci) do update set nilai = excluded.nilai,
+                                           updated_at = now()`,
+        [s.kunci, s.nilai],
+      );
+    }
+
     for (const j of JURUSAN) {
       await client.query(
         `insert into jurusan (kode, nama) values ($1, $2)

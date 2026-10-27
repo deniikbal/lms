@@ -10,19 +10,24 @@ import {
 } from "react";
 import Link from "next/link";
 import {
+  AlertTriangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FileSpreadsheetIcon,
   Loader2Icon,
   SearchIcon,
   SearchXIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 
 import {
   deleteStudentAction,
+  deleteStudentsBulkAction,
   fetchStudentsAction,
   resetStudentPasswordAction,
 } from "@/app/actions/students";
+import { ImportStudentsDialog } from "@/components/admin/import-students-dialog";
 import { PersonActions } from "@/components/admin/person-actions";
 import {
   KelasChip,
@@ -30,6 +35,17 @@ import {
   RelativeTime,
   StatusDot,
 } from "@/components/admin/person-cells";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -60,13 +76,6 @@ const DEBOUNCE_MS = 350;
 const HEAD =
   "px-4 text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground";
 
-/**
- * The student table.
- *
- * Filters and the page number live in component state, not the query string, so
- * typing in the search box does not rewrite the URL. Paging is served by a
- * Server Action, which keeps the filtering and the 10-row window on the server.
- */
 export function StudentDirectory({
   initial,
   kelas,
@@ -83,8 +92,11 @@ export function StudentDirectory({
   const [kelasId, setKelasId] = useState<number | null>(initialKelas);
   const [data, setData] = useState(initial);
   const [pending, startTransition] = useTransition();
+  const [importOpen, setImportOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAlertOpen, setBulkAlertOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  // Responses can land out of order when typing fast; only the newest wins.
   const latest = useRef(0);
 
   const load = useCallback(
@@ -92,14 +104,15 @@ export function StudentDirectory({
       const ticket = ++latest.current;
       startTransition(async () => {
         const result = await fetchStudentsAction(next);
-        if (ticket === latest.current) setData(result);
+        if (ticket === latest.current) {
+          setData(result);
+          setSelectedIds([]);
+        }
       });
     },
     [],
   );
 
-  // Debounced typing. The guard stops the effect from re-firing once `query`
-  // has caught up with what was typed.
   useEffect(() => {
     if (term.trim() === query) return;
     const timer = setTimeout(() => {
@@ -120,6 +133,38 @@ export function StudentDirectory({
   const { rows, total, page, pageCount } = data;
   const firstRow = total === 0 ? 0 : (page - 1) * SISWA_PER_PAGE + 1;
   const lastRow = Math.min(firstRow + rows.length - 1, total);
+
+  const allVisibleSelected =
+    rows.length > 0 && rows.every((row) => selectedIds.includes(row.id));
+
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(rows.map((r) => r.id));
+    }
+  }
+
+  function toggleSelectRow(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  async function confirmBulkDelete() {
+    if (selectedIds.length === 0) return;
+
+    setBulkDeleting(true);
+    const res = await deleteStudentsBulkAction(selectedIds);
+    setBulkDeleting(false);
+    setBulkAlertOpen(false);
+
+    if (res.ok) {
+      load({ q: query, kelasId, page });
+    } else {
+      alert(res.error ?? "Gagal menghapus siswa.");
+    }
+  }
 
   function changeKelas(value: string) {
     const next = value === ALL ? null : Number(value);
@@ -164,7 +209,7 @@ export function StudentDirectory({
           ) : null}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Select
             items={kelasItems}
             value={kelasId === null ? ALL : String(kelasId)}
@@ -190,6 +235,30 @@ export function StudentDirectory({
               Reset
             </Button>
           ) : null}
+
+          {selectedIds.length > 0 ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkAlertOpen(true)}
+              disabled={bulkDeleting}
+            >
+              <Trash2Icon className="size-4" />
+              Hapus ({selectedIds.length})
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            className="sm:ml-auto"
+          >
+            <FileSpreadsheetIcon className="size-4" />
+            Import Excel
+          </Button>
         </div>
       </div>
 
@@ -199,6 +268,15 @@ export function StudentDirectory({
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
+                  <TableHead className="w-10 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Pilih semua siswa di halaman ini"
+                      className="size-4 cursor-pointer rounded border-border accent-primary"
+                    />
+                  </TableHead>
                   <TableHead className={HEAD}>Siswa</TableHead>
                   <TableHead className={HEAD}>Kelas</TableHead>
                   <TableHead className={HEAD}>L/P</TableHead>
@@ -209,58 +287,72 @@ export function StudentDirectory({
               </TableHeader>
 
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-border/60 hover:bg-muted/40"
-                  >
-                    <TableCell className="px-4 py-2.5">
-                      <div className="flex items-center gap-3">
-                        <Monogram name={row.name} />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {row.name}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground tabular-nums">
-                            {row.username ?? "tanpa NISN"}
-                            {row.email ? ` · ${row.email}` : ""}
-                          </p>
+                {rows.map((row) => {
+                  const isSelected = selectedIds.includes(row.id);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={isSelected ? "selected" : undefined}
+                      className="border-border/60 hover:bg-muted/40"
+                    >
+                      <TableCell className="w-10 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(row.id)}
+                          aria-label={`Pilih ${row.name}`}
+                          className="size-4 cursor-pointer rounded border-border accent-primary"
+                        />
+                      </TableCell>
+
+                      <TableCell className="px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <Monogram name={row.name} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {row.name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground tabular-nums">
+                              {row.username ?? "tanpa NISN"}
+                              {row.email ? ` · ${row.email}` : ""}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <KelasChip nama={row.kelasNama} />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <KelasChip nama={row.kelasNama} />
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {row.jk ?? "—"}
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {row.jk ?? "—"}
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <StatusDot aktif={row.aktif} />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <StatusDot aktif={row.aktif} />
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <RelativeTime value={row.terakhirAktifAt} />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <RelativeTime value={row.terakhirAktifAt} />
+                      </TableCell>
 
-                    <TableCell className="px-2 py-2.5">
-                      <PersonActions
-                        id={row.id}
-                        name={row.name}
-                        username={row.username}
-                        idLabel="NISN"
-                        editHref={`/admin/siswa/${row.id}`}
-                        resetAction={resetStudentPasswordAction}
-                        deleteAction={deleteStudentAction}
-                        onChanged={() =>
-                          load({ q: query, kelasId, page })
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell className="px-2 py-2.5">
+                        <PersonActions
+                          id={row.id}
+                          name={row.name}
+                          username={row.username}
+                          idLabel="NISN"
+                          editHref={`/admin/siswa/${row.id}`}
+                          resetAction={resetStudentPasswordAction}
+                          deleteAction={deleteStudentAction}
+                          onChanged={() =>
+                            load({ q: query, kelasId, page })
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -321,6 +413,38 @@ export function StudentDirectory({
         </Link>{" "}
         untuk memindahkan siswa antar kelas.
       </p>
+
+      <ImportStudentsDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => load({ q: query, kelasId, page: 1 })}
+      />
+
+      <AlertDialog open={bulkAlertOpen} onOpenChange={setBulkAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangleIcon className="size-5" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Hapus Siswa Terpilih?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus permanen <strong>{selectedIds.length} siswa</strong> beserta kredensial dan sesi login mereka. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={bulkDeleting}
+              onClick={confirmBulkDelete}
+            >
+              {bulkDeleting ? "Menghapus…" : `Hapus (${selectedIds.length})`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

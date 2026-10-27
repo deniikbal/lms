@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { hashPassword } from "better-auth/crypto";
 
 import {
+  deletePeopleBulk,
   deletePerson,
   getPerson,
   listPeople,
@@ -121,4 +122,27 @@ export async function deleteTeacherAction(formData: FormData) {
   await deletePerson(id, "guru");
 
   revalidatePath(LIST_PATH);
+}
+
+/** Server Action: bulk delete teachers. */
+export async function deleteTeachersBulkAction(
+  ids: string[],
+): Promise<{ ok: boolean; count?: number; error?: string }> {
+  await requireRole("admin");
+
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return { ok: false, error: "Pilih minimal satu guru untuk dihapus." };
+  }
+
+  try {
+    const count = await deletePeopleBulk(ids, "guru");
+    revalidatePath(LIST_PATH);
+    revalidatePath("/admin/kelas");
+    return { ok: true, count };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Gagal menghapus guru.",
+    };
+  }
 }

@@ -3,19 +3,24 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
+  AlertTriangleIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  FileSpreadsheetIcon,
   Loader2Icon,
   SearchIcon,
   SearchXIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 
 import {
   deleteTeacherAction,
+  deleteTeachersBulkAction,
   fetchTeachersAction,
   resetTeacherPasswordAction,
 } from "@/app/actions/teachers";
+import { ImportTeachersDialog } from "@/components/admin/import-teachers-dialog";
 import { PersonActions } from "@/components/admin/person-actions";
 import {
   KelasChip,
@@ -23,6 +28,17 @@ import {
   RelativeTime,
   StatusDot,
 } from "@/components/admin/person-cells";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -40,12 +56,6 @@ const DEBOUNCE_MS = 350;
 const HEAD =
   "px-4 text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground";
 
-/**
- * The teacher table — the student table's twin.
- *
- * Teachers carry no class, so there is no class filter; everything else
- * (state-held search, action-backed paging, 10 rows) matches `/admin/siswa`.
- */
 export function TeacherDirectory({
   initial,
   initialQ,
@@ -58,14 +68,21 @@ export function TeacherDirectory({
   const [data, setData] = useState(initial);
   const [pending, startTransition] = useTransition();
 
-  // Responses can land out of order when typing fast; only the newest wins.
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAlertOpen, setBulkAlertOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+
   const latest = useRef(0);
 
   const load = useCallback((next: { q: string; page: number }) => {
     const ticket = ++latest.current;
     startTransition(async () => {
       const result = await fetchTeachersAction(next);
-      if (ticket === latest.current) setData(result);
+      if (ticket === latest.current) {
+        setData(result);
+        setSelectedIds([]);
+      }
     });
   }, []);
 
@@ -83,29 +100,88 @@ export function TeacherDirectory({
   const firstRow = total === 0 ? 0 : (page - 1) * GURU_PER_PAGE + 1;
   const lastRow = Math.min(firstRow + rows.length - 1, total);
 
+  const allVisibleSelected =
+    rows.length > 0 && rows.every((row) => selectedIds.includes(row.id));
+
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(rows.map((r) => r.id));
+    }
+  }
+
+  function toggleSelectRow(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  async function confirmBulkDelete() {
+    if (selectedIds.length === 0) return;
+
+    setBulkDeleting(true);
+    const res = await deleteTeachersBulkAction(selectedIds);
+    setBulkDeleting(false);
+    setBulkAlertOpen(false);
+
+    if (res.ok) {
+      load({ q: query, page });
+    } else {
+      alert(res.error ?? "Gagal menghapus guru.");
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="relative w-full sm:max-w-xs">
-        <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input
-          value={term}
-          onChange={(event) => setTerm(event.target.value)}
-          placeholder="Cari nama atau NIP…"
-          aria-label="Cari nama atau NIP"
-          className="h-9 w-full rounded-lg border border-border bg-card pr-8 pl-8 text-sm outline-none transition-[color,box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
-        />
-        {pending ? (
-          <Loader2Icon className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
-        ) : term ? (
-          <button
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder="Cari nama atau NIP…"
+            aria-label="Cari nama atau NIP"
+            className="h-9 w-full rounded-lg border border-border bg-card pr-8 pl-8 text-sm outline-none transition-[color,box-shadow,border-color] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/20"
+          />
+          {pending ? (
+            <Loader2Icon className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+          ) : term ? (
+            <button
+              type="button"
+              aria-label="Bersihkan pencarian"
+              onClick={() => setTerm("")}
+              className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <XIcon className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={() => setBulkAlertOpen(true)}
+              disabled={bulkDeleting}
+            >
+              <Trash2Icon className="size-4" />
+              Hapus ({selectedIds.length})
+            </Button>
+          ) : null}
+
+          <Button
             type="button"
-            aria-label="Bersihkan pencarian"
-            onClick={() => setTerm("")}
-            className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
           >
-            <XIcon className="size-3.5" />
-          </button>
-        ) : null}
+            <FileSpreadsheetIcon className="size-4" />
+            Import Excel
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
@@ -114,6 +190,15 @@ export function TeacherDirectory({
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
+                  <TableHead className="w-10 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Pilih semua guru di halaman ini"
+                      className="size-4 cursor-pointer rounded border-border accent-primary"
+                    />
+                  </TableHead>
                   <TableHead className={HEAD}>Guru</TableHead>
                   <TableHead className={HEAD}>L/P</TableHead>
                   <TableHead className={HEAD}>Wali kelas</TableHead>
@@ -124,56 +209,70 @@ export function TeacherDirectory({
               </TableHeader>
 
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-border/60 hover:bg-muted/40"
-                  >
-                    <TableCell className="px-4 py-2.5">
-                      <div className="flex items-center gap-3">
-                        <Monogram name={row.name} />
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {row.name}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground tabular-nums">
-                            {row.username ?? "tanpa NIP"}
-                            {row.email ? ` · ${row.email}` : ""}
-                          </p>
+                {rows.map((row) => {
+                  const isSelected = selectedIds.includes(row.id);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={isSelected ? "selected" : undefined}
+                      className="border-border/60 hover:bg-muted/40"
+                    >
+                      <TableCell className="w-10 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(row.id)}
+                          aria-label={`Pilih ${row.name}`}
+                          className="size-4 cursor-pointer rounded border-border accent-primary"
+                        />
+                      </TableCell>
+
+                      <TableCell className="px-4 py-2.5">
+                        <div className="flex items-center gap-3">
+                          <Monogram name={row.name} />
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {row.name}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground tabular-nums">
+                              {row.username ?? "tanpa NIP"}
+                              {row.email ? ` · ${row.email}` : ""}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
-                      {row.jk ?? "—"}
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5 text-xs text-muted-foreground">
+                        {row.jk ?? "—"}
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <KelasChip nama={row.waliKelas} kosong="Bukan wali" />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <KelasChip nama={row.waliKelas} kosong="Bukan wali" />
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <StatusDot aktif={row.aktif} />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <StatusDot aktif={row.aktif} />
+                      </TableCell>
 
-                    <TableCell className="px-4 py-2.5">
-                      <RelativeTime value={row.terakhirAktifAt} />
-                    </TableCell>
+                      <TableCell className="px-4 py-2.5">
+                        <RelativeTime value={row.terakhirAktifAt} />
+                      </TableCell>
 
-                    <TableCell className="px-2 py-2.5">
-                      <PersonActions
-                        id={row.id}
-                        name={row.name}
-                        username={row.username}
-                        idLabel="NIP"
-                        editHref={`/admin/guru/${row.id}`}
-                        resetAction={resetTeacherPasswordAction}
-                        deleteAction={deleteTeacherAction}
-                        onChanged={() => load({ q: query, page })}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell className="px-2 py-2.5">
+                        <PersonActions
+                          id={row.id}
+                          name={row.name}
+                          username={row.username}
+                          idLabel="NIP"
+                          editHref={`/admin/guru/${row.id}`}
+                          resetAction={resetTeacherPasswordAction}
+                          deleteAction={deleteTeacherAction}
+                          onChanged={() => load({ q: query, page })}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -231,6 +330,38 @@ export function TeacherDirectory({
         </Link>{" "}
         untuk menentukan wali kelas.
       </p>
+
+      <ImportTeachersDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onImported={() => load({ q: query, page: 1 })}
+      />
+
+      <AlertDialog open={bulkAlertOpen} onOpenChange={setBulkAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangleIcon className="size-5" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Hapus Guru Terpilih?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus permanen <strong>{selectedIds.length} guru</strong> beserta akun kredensial dan sesi login mereka. Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={bulkDeleting}
+              onClick={confirmBulkDelete}
+            >
+              {bulkDeleting ? "Menghapus…" : `Hapus (${selectedIds.length})`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

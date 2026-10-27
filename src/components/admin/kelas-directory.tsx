@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
+  AlertTriangleIcon,
   ArrowUpRightIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -10,12 +11,24 @@ import {
   PlusIcon,
   SearchIcon,
   SearchXIcon,
+  Trash2Icon,
   XIcon,
 } from "lucide-react";
 
-import { fetchKelasAction } from "@/app/actions/kelas";
+import { deleteKelasBulkAction, fetchKelasAction } from "@/app/actions/kelas";
 import { KelasDialog } from "@/components/admin/kelas-dialog";
 import { KelasRowActions } from "@/components/admin/kelas-row-actions";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -41,13 +54,6 @@ const DEBOUNCE_MS = 350;
 const HEAD =
   "px-4 text-[0.7rem] font-medium uppercase tracking-wider text-muted-foreground";
 
-/**
- * The class table.
- *
- * Same shape as the student and teacher lists — search and page in component
- * state, rows fetched through a Server Action — with add/edit happening in a
- * modal instead of a side panel.
- */
 export function KelasDirectory({
   initial,
   jenjang,
@@ -67,14 +73,20 @@ export function KelasDirectory({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<KelasRow | null>(null);
 
-  // Responses can land out of order when typing fast; only the newest wins.
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [bulkAlertOpen, setBulkAlertOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   const latest = useRef(0);
 
   const load = useCallback((next: { q: string; page: number }) => {
     const ticket = ++latest.current;
     startTransition(async () => {
       const result = await fetchKelasAction(next);
-      if (ticket === latest.current) setData(result);
+      if (ticket === latest.current) {
+        setData(result);
+        setSelectedIds([]);
+      }
     });
   }, []);
 
@@ -92,6 +104,43 @@ export function KelasDirectory({
   const firstRow = total === 0 ? 0 : (page - 1) * KELAS_PER_PAGE + 1;
   const lastRow = Math.min(firstRow + rows.length - 1, total);
   const showJurusan = hasJurusan(jenjang);
+
+  const allVisibleSelected =
+    rows.length > 0 && rows.every((row) => selectedIds.includes(row.id));
+
+  function toggleSelectAll() {
+    if (allVisibleSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(rows.map((r) => r.id));
+    }
+  }
+
+  function toggleSelectRow(id: number) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  }
+
+  async function confirmBulkDelete() {
+    if (selectedIds.length === 0) return;
+
+    setBulkDeleting(true);
+    const res = await deleteKelasBulkAction(selectedIds);
+    setBulkDeleting(false);
+    setBulkAlertOpen(false);
+
+    if (res.ok) {
+      if (res.skippedClasses && res.skippedClasses.length > 0) {
+        alert(
+          `Berhasil menghapus ${res.deletedCount} kelas.\n\nKelas berikut tidak dapat dihapus karena masih memiliki siswa:\n- ${res.skippedClasses.join("\n- ")}`,
+        );
+      }
+      refresh();
+    } else {
+      alert(res.error ?? "Gagal menghapus kelas.");
+    }
+  }
 
   function openAdd() {
     setEditing(null);
@@ -140,10 +189,25 @@ export function KelasDirectory({
           ) : null}
         </div>
 
-        <Button type="button" size="lg" onClick={openAdd}>
-          <PlusIcon />
-          Tambah kelas
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.length > 0 ? (
+            <Button
+              type="button"
+              variant="destructive"
+              size="lg"
+              onClick={() => setBulkAlertOpen(true)}
+              disabled={bulkDeleting}
+            >
+              <Trash2Icon className="size-4" />
+              Hapus ({selectedIds.length})
+            </Button>
+          ) : null}
+
+          <Button type="button" size="lg" onClick={openAdd}>
+            <PlusIcon />
+            Tambah kelas
+          </Button>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
@@ -152,6 +216,15 @@ export function KelasDirectory({
             <Table>
               <TableHeader>
                 <TableRow className="border-border/60 hover:bg-transparent">
+                  <TableHead className="w-10 px-3 text-center">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Pilih semua kelas di halaman ini"
+                      className="size-4 cursor-pointer rounded border-border accent-primary"
+                    />
+                  </TableHead>
                   <TableHead className={HEAD}>Kelas</TableHead>
                   <TableHead className={HEAD}>Tingkat</TableHead>
                   {showJurusan ? (
@@ -165,73 +238,87 @@ export function KelasDirectory({
               </TableHeader>
 
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-border/60 hover:bg-muted/40"
-                  >
-                    <TableCell className="px-4 py-3">
-                      <Link
-                        href={`/admin/siswa?kelas=${row.id}`}
-                        className="group inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
-                      >
-                        {row.nama}
-                        <ArrowUpRightIcon className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                      </Link>
-                    </TableCell>
-
-                    <TableCell className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
-                      {row.tingkat ?? "—"}
-                    </TableCell>
-
-                    {showJurusan ? (
-                      <TableCell className="px-4 py-3">
-                        {row.jurusanKode ? (
-                          <span
-                            title={row.jurusanNama ?? undefined}
-                            className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
-                          >
-                            {row.jurusanKode}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
+                {rows.map((row) => {
+                  const isSelected = selectedIds.includes(row.id);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={isSelected ? "selected" : undefined}
+                      className="border-border/60 hover:bg-muted/40"
+                    >
+                      <TableCell className="w-10 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelectRow(row.id)}
+                          aria-label={`Pilih ${row.nama}`}
+                          className="size-4 cursor-pointer rounded border-border accent-primary"
+                        />
                       </TableCell>
-                    ) : null}
 
-                    <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                      {row.waliNama ?? "Belum ada wali"}
-                    </TableCell>
+                      <TableCell className="px-4 py-3">
+                        <Link
+                          href={`/admin/siswa?kelas=${row.id}`}
+                          className="group inline-flex items-center gap-1 text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                        >
+                          {row.nama}
+                          <ArrowUpRightIcon className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                        </Link>
+                      </TableCell>
 
-                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums">
-                      <Link
-                        href={`/admin/siswa?kelas=${row.id}`}
-                        className="text-foreground underline-offset-4 hover:underline"
-                      >
-                        {row.siswaCount}
-                      </Link>
-                    </TableCell>
+                      <TableCell className="px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                        {row.tingkat ?? "—"}
+                      </TableCell>
 
-                    <TableCell className="px-4 py-3 text-right text-xs tabular-nums">
-                      <Link
-                        href={`/admin/ruang?kelas=${row.id}`}
-                        className="text-foreground underline-offset-4 hover:underline"
-                      >
-                        {row.ruangCount}
-                      </Link>
-                    </TableCell>
+                      {showJurusan ? (
+                        <TableCell className="px-4 py-3">
+                          {row.jurusanKode ? (
+                            <span
+                              title={row.jurusanNama ?? undefined}
+                              className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                            >
+                              {row.jurusanKode}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                      ) : null}
 
-                    <TableCell className="px-2 py-3">
-                      <KelasRowActions
-                        id={row.id}
-                        nama={row.nama}
-                        siswaCount={row.siswaCount}
-                        onEdit={() => openEdit(row)}
-                        onDeleted={refresh}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                      <TableCell className="px-4 py-3 text-xs text-muted-foreground">
+                        {row.waliNama ?? "Belum ada wali"}
+                      </TableCell>
+
+                      <TableCell className="px-4 py-3 text-right text-xs tabular-nums">
+                        <Link
+                          href={`/admin/siswa?kelas=${row.id}`}
+                          className="text-foreground underline-offset-4 hover:underline"
+                        >
+                          {row.siswaCount}
+                        </Link>
+                      </TableCell>
+
+                      <TableCell className="px-4 py-3 text-right text-xs tabular-nums">
+                        <Link
+                          href={`/admin/ruang?kelas=${row.id}`}
+                          className="text-foreground underline-offset-4 hover:underline"
+                        >
+                          {row.ruangCount}
+                        </Link>
+                      </TableCell>
+
+                      <TableCell className="px-2 py-3">
+                        <KelasRowActions
+                          id={row.id}
+                          nama={row.nama}
+                          siswaCount={row.siswaCount}
+                          onEdit={() => openEdit(row)}
+                          onDeleted={refresh}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
@@ -297,6 +384,32 @@ export function KelasDirectory({
         kelas={editing}
         onSaved={refresh}
       />
+
+      <AlertDialog open={bulkAlertOpen} onOpenChange={setBulkAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <AlertTriangleIcon className="size-5" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Hapus Kelas Terpilih?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus <strong>{selectedIds.length} kelas</strong> terpilih beserta ruang belajar dan pengumuman terkait. Kelas yang masih memiliki siswa akan dilewati.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={bulkDeleting}
+              onClick={confirmBulkDelete}
+            >
+              {bulkDeleting ? "Menghapus…" : `Hapus (${selectedIds.length})`}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
