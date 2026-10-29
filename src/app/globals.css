@@ -53,7 +53,10 @@ body {
 }
 
 :root {
-  --background: oklch(1 0 0);
+  /* Page sits a shade below white so white cards read as raised surfaces.
+     Before this the canvas and the cards were both pure white, which left the
+     border to do all the work of separating them. */
+  --background: oklch(0.962 0.004 286.32);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);
@@ -61,11 +64,11 @@ body {
   --popover-foreground: oklch(0.141 0.005 285.823);
   --primary: oklch(0.841 0.238 128.85);
   --primary-foreground: oklch(0.405 0.101 131.063);
-  --secondary: oklch(0.967 0.001 286.375);
+  --secondary: oklch(0.951 0.003 286.375);
   --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.967 0.001 286.375);
+  --muted: oklch(0.955 0.003 286.375);
   --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
+  --accent: oklch(0.951 0.003 286.375);
   --accent-foreground: oklch(0.21 0.006 285.885);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.92 0.004 286.32);

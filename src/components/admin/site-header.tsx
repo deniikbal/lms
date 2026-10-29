@@ -2,12 +2,11 @@
 
 import { usePathname } from "next/navigation";
 
-import { findNavItem } from "@/components/admin/nav-config";
-import { RoleBadge } from "@/components/role-badge";
-import { SignOutButton } from "@/components/sign-out-button";
+import { findAdminNavItem } from "@/components/admin/nav-config";
+import { MenuPengguna } from "@/components/menu-pengguna";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import type { Role } from "@/lib/roles";
+import { ROLE_HOME, ROLE_LABEL, type Role } from "@/lib/roles";
 
 /** Sticky top bar: sidebar toggle, current section, and the signed-in user. */
 export function SiteHeader({
@@ -22,25 +21,20 @@ export function SiteHeader({
   };
 }) {
   const pathname = usePathname();
-  const current = findNavItem(pathname);
+  const current = findAdminNavItem(pathname);
 
   return (
-    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur">
+    <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-card px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="h-4" />
       <span className="text-sm font-medium">{current?.title ?? "Dashboard"}</span>
 
-      <div className="ml-auto flex items-center gap-3">
-        <div className="hidden text-right sm:block">
-          <p className="text-sm leading-tight font-medium text-foreground">
-            {user.name}
-          </p>
-          <p className="text-xs leading-tight text-muted-foreground">
-            {user.email || user.username || ""}
-          </p>
-        </div>
-        <RoleBadge role={user.role} />
-        <SignOutButton />
+      <div className="ml-auto flex items-center">
+        <MenuPengguna
+          user={{ name: user.name, email: user.email || user.username || "" }}
+          peranLabel={ROLE_LABEL[user.role]}
+          beranda={{ href: ROLE_HOME[user.role], label: "Dashboard" }}
+        />
       </div>
     </header>
   );

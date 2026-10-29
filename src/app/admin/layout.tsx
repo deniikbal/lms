@@ -18,7 +18,7 @@ import { requireRole } from "@/lib/session";
  */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
-    <Suspense fallback={<LoadingPanel />}>
+    <Suspense fallback={<LoadingPanel varian="papan" />}>
       <AdminShell>{children}</AdminShell>
     </Suspense>
   );

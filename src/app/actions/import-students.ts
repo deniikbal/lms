@@ -107,8 +107,8 @@ export async function importStudentsAction(
       }
 
       let jk: "L" | "P" | null = null;
-      if (jkRaw === "L" || jkRaw === "LAKI-LAKI" || jkRaw === "LAKI") jk = "L";
-      else if (jkRaw === "P" || jkRaw === "PEREMPUAN") jk = "P";
+      if (jkRaw === "L" || jkRaw.startsWith("LAKI") || jkRaw === "PRIA") jk = "L";
+      else if (jkRaw === "P" || jkRaw.startsWith("PEREMPUAN") || jkRaw === "WANITA") jk = "P";
 
       let kelasId: number | null = null;
       if (kelasRaw) {

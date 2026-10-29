@@ -36,6 +36,7 @@ export function PersonActions({
   username,
   idLabel,
   editHref,
+  onEdit,
   resetAction,
   deleteAction,
   onChanged,
@@ -45,7 +46,8 @@ export function PersonActions({
   username: string | null;
   /** What the login identifier is called for this role — NISN or NIP. */
   idLabel: string;
-  editHref: string;
+  editHref?: string;
+  onEdit?: () => void;
   resetAction: Action;
   deleteAction: Action;
   onChanged?: () => void;
@@ -78,18 +80,32 @@ export function PersonActions({
 
   return (
     <div className="flex items-center justify-end gap-0.5">
-      <Link
-        href={editHref}
-        aria-label={`Ubah ${name}`}
-        title="Ubah"
-        className={buttonVariants({
-          variant: "ghost",
-          size: "icon-sm",
-          className: "text-muted-foreground hover:text-foreground",
-        })}
-      >
-        <PencilIcon />
-      </Link>
+      {onEdit ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Ubah ${name}`}
+          title="Ubah"
+          onClick={onEdit}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <PencilIcon />
+        </Button>
+      ) : editHref ? (
+        <Link
+          href={editHref}
+          aria-label={`Ubah ${name}`}
+          title="Ubah"
+          className={buttonVariants({
+            variant: "ghost",
+            size: "icon-sm",
+            className: "text-muted-foreground hover:text-foreground",
+          })}
+        >
+          <PencilIcon />
+        </Link>
+      ) : null}
 
       <AlertDialog
         open={open === "reset"}

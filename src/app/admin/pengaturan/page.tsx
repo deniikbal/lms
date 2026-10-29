@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function PengaturanPage() {
   return (
-    <Suspense fallback={<LoadingPanel />}>
+    <Suspense fallback={<LoadingPanel varian="form" />}>
       <PengaturanSection />
     </Suspense>
   );

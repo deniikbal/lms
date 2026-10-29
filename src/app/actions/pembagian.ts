@@ -150,7 +150,9 @@ export async function hapusJadwalAction(input: {
   if (!kelasId) return { error: "Kelas tidak ditemukan." };
   if (!jadwalId) return { error: "Jadwal tidak ditemukan." };
 
-  await hapusJadwal(jadwalId);
+  const terhapus = await hapusJadwal(jadwalId, kelasId);
+  if (!terhapus) return { error: "Jadwal tidak ditemukan di kelas ini." };
+
   revalidatePath(LIST_PATH);
   return { error: null, board: await boardFor(kelasId) };
 }

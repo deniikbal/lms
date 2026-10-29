@@ -8,6 +8,7 @@ import {
   ChevronRightIcon,
   FileSpreadsheetIcon,
   Loader2Icon,
+  PlusIcon,
   SearchIcon,
   SearchXIcon,
   Trash2Icon,
@@ -21,6 +22,7 @@ import {
   resetTeacherPasswordAction,
 } from "@/app/actions/teachers";
 import { ImportTeachersDialog } from "@/components/admin/import-teachers-dialog";
+import { TeacherDialog } from "@/components/admin/teacher-dialog";
 import { PersonActions } from "@/components/admin/person-actions";
 import {
   KelasChip,
@@ -72,6 +74,7 @@ export function TeacherDirectory({
   const [bulkAlertOpen, setBulkAlertOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
 
   const latest = useRef(0);
 
@@ -163,7 +166,7 @@ export function TeacherDirectory({
             <Button
               type="button"
               variant="destructive"
-              size="sm"
+              size="lg"
               onClick={() => setBulkAlertOpen(true)}
               disabled={bulkDeleting}
             >
@@ -175,11 +178,16 @@ export function TeacherDirectory({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => setImportOpen(true)}
           >
             <FileSpreadsheetIcon className="size-4" />
             Import Excel
+          </Button>
+
+          <Button type="button" size="lg" onClick={() => setAddOpen(true)}>
+            <PlusIcon />
+            Tambah guru
           </Button>
         </div>
       </div>
@@ -335,6 +343,12 @@ export function TeacherDirectory({
         open={importOpen}
         onOpenChange={setImportOpen}
         onImported={() => load({ q: query, page: 1 })}
+      />
+
+      <TeacherDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onSaved={() => load({ q: query, page: 1 })}
       />
 
       <AlertDialog open={bulkAlertOpen} onOpenChange={setBulkAlertOpen}>

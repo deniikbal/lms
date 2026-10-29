@@ -70,6 +70,20 @@ const KELAS_SELECT = `
     left join "user" u on u.id = k.wali_id
 `;
 
+let hasNaturalCollation: boolean | null = null;
+async function ensureNaturalCollation(): Promise<boolean> {
+  if (hasNaturalCollation !== null) return hasNaturalCollation;
+  try {
+    await pool.query(
+      `create collation if not exists "natural" (provider = icu, locale = 'und-u-kn-true')`,
+    );
+    hasNaturalCollation = true;
+  } catch {
+    hasNaturalCollation = false;
+  }
+  return hasNaturalCollation;
+}
+
 /** One page of classes, ordered by tingkat then name — the order the table shows. */
 export async function listKelasPage({
   q,
@@ -105,10 +119,13 @@ export async function listKelasPage({
   const safePage = Math.min(Math.max(1, page), pageCount);
   const offset = (safePage - 1) * perPage;
 
+  const natural = await ensureNaturalCollation();
+  const sortName = natural ? `k.nama collate "natural"` : "k.nama";
+
   const { rows } = await pool.query<RawKelasRow>(
     `${KELAS_SELECT}
        ${where}
-      order by k.tingkat asc nulls last, k.nama asc
+      order by k.tingkat asc nulls last, ${sortName} asc
       limit $${params.length + 1} offset $${params.length + 2}`,
     [...params, perPage, offset],
   );

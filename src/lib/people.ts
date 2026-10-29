@@ -1,3 +1,6 @@
+import crypto from "node:crypto";
+import { hashPassword } from "better-auth/crypto";
+
 import { pool } from "@/lib/db";
 import {
   PEOPLE_PER_PAGE,
@@ -174,7 +177,7 @@ export async function getPerson(
 
 export async function listKelas(): Promise<KelasOption[]> {
   const { rows } = await pool.query<KelasOption>(
-    `select id, nama from kelas order by tingkat nulls last, nama`,
+    `select id, nama from kelas order by tingkat nulls last, nama collate "natural"`,
   );
   return rows;
 }
@@ -187,6 +190,57 @@ export type PersonInput = {
   kelasId: number | null;
   aktif: boolean;
 };
+
+/** Throws `username_taken` when another account already uses the NISN/NIP. */
+export async function createPerson(
+  role: Role,
+  input: PersonInput,
+): Promise<string> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const id = `${role}-${input.username}-${crypto.randomBytes(4).toString("hex")}`;
+    const now = new Date();
+
+    await client.query(
+      `insert into "user"
+         (id, name, email, "emailVerified", "createdAt", "updatedAt",
+          role, username, "displayUsername", jk, kelas_id, aktif)
+       values ($1, $2, $3, false, $4, $4, $5, $6, $6, $7, $8, $9)`,
+      [
+        id,
+        input.name,
+        input.email,
+        now,
+        role,
+        input.username,
+        input.jk,
+        role === "siswa" ? input.kelasId : null,
+        input.aktif,
+      ],
+    );
+
+    const passwordHash = await hashPassword(input.username);
+    await client.query(
+      `insert into account
+         (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+       values ($1, $2, 'credential', $3, $4, $5, $5)
+       on conflict (id) do nothing`,
+      [`acc-${id}`, id, id, passwordHash, now],
+    );
+
+    await client.query("commit");
+    return id;
+  } catch (error) {
+    await client.query("rollback");
+    if ((error as { code?: string }).code === "23505") {
+      throw new Error("username_taken");
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 /** Throws `username_taken` when another account already uses the NISN/NIP. */
 export async function updatePerson(

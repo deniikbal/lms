@@ -117,6 +117,10 @@ async function main() {
 
     // --- settings -----------------------------------------------------------
     await client.query(`
+      create collation if not exists "natural" (provider = icu, locale = 'und-u-kn-true')
+    `);
+
+    await client.query(`
       create table if not exists pengaturan (
         kunci      text primary key,
         nilai      text,

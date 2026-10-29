@@ -28,6 +28,7 @@ import {
   resetStudentPasswordAction,
 } from "@/app/actions/students";
 import { ImportStudentsDialog } from "@/components/admin/import-students-dialog";
+import { StudentDialog } from "@/components/admin/student-dialog";
 import { PersonActions } from "@/components/admin/person-actions";
 import {
   KelasChip,
@@ -66,6 +67,7 @@ import {
   SISWA_PER_PAGE,
   type KelasOption,
   type ListPeopleResult,
+  type PersonRow,
 } from "@/lib/people-shared";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +98,7 @@ export function StudentDirectory({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAlertOpen, setBulkAlertOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<PersonRow | null>(null);
 
   const latest = useRef(0);
 
@@ -231,7 +234,7 @@ export function StudentDirectory({
           </Select>
 
           {filtered ? (
-            <Button type="button" variant="ghost" size="sm" onClick={reset}>
+            <Button type="button" variant="ghost" size="lg" onClick={reset}>
               Reset
             </Button>
           ) : null}
@@ -240,7 +243,7 @@ export function StudentDirectory({
             <Button
               type="button"
               variant="destructive"
-              size="sm"
+              size="lg"
               onClick={() => setBulkAlertOpen(true)}
               disabled={bulkDeleting}
             >
@@ -252,7 +255,7 @@ export function StudentDirectory({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="lg"
             onClick={() => setImportOpen(true)}
             className="sm:ml-auto"
           >
@@ -342,7 +345,7 @@ export function StudentDirectory({
                           name={row.name}
                           username={row.username}
                           idLabel="NISN"
-                          editHref={`/admin/siswa/${row.id}`}
+                          onEdit={() => setEditingStudent(row)}
                           resetAction={resetStudentPasswordAction}
                           deleteAction={deleteStudentAction}
                           onChanged={() =>
@@ -418,6 +421,19 @@ export function StudentDirectory({
         open={importOpen}
         onOpenChange={setImportOpen}
         onImported={() => load({ q: query, kelasId, page: 1 })}
+      />
+
+      <StudentDialog
+        open={editingStudent !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingStudent(null);
+        }}
+        student={editingStudent}
+        kelas={kelas}
+        onSaved={() => {
+          setEditingStudent(null);
+          load({ q: query, kelasId, page });
+        }}
       />
 
       <AlertDialog open={bulkAlertOpen} onOpenChange={setBulkAlertOpen}>

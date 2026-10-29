@@ -25,7 +25,7 @@ export async function getTahunAktif(): Promise<TahunAktif | null> {
 
 export async function listKelasRingkas(): Promise<KelasRingkas[]> {
   const { rows } = await pool.query<KelasRingkas>(
-    `select id, nama, tingkat from kelas order by tingkat asc nulls last, nama asc`,
+    `select id, nama, tingkat from kelas order by tingkat asc nulls last, nama collate "natural" asc`,
   );
   return rows;
 }
@@ -61,6 +61,14 @@ export async function guruIsGuru(id: string): Promise<boolean> {
 export async function mapelAda(id: number): Promise<boolean> {
   const { rows } = await pool.query<{ ok: boolean }>(
     `select exists(select 1 from mapel where id = $1) as ok`,
+    [id],
+  );
+  return rows[0]?.ok === true;
+}
+
+export async function kelasAda(id: number): Promise<boolean> {
+  const { rows } = await pool.query<{ ok: boolean }>(
+    `select exists(select 1 from kelas where id = $1) as ok`,
     [id],
   );
   return rows[0]?.ok === true;
@@ -200,6 +208,9 @@ export async function simpanRuang({
   mapelId: number;
   guruId: string | null;
 }): Promise<Hasil> {
+  if (!(await kelasAda(kelasId))) {
+    return { ok: false, error: "Kelas tidak ditemukan." };
+  }
   if (!(await mapelAda(mapelId))) {
     return { ok: false, error: "Mapel tidak ditemukan." };
   }
@@ -298,17 +309,39 @@ export async function tambahJadwal({
   return { ok: true };
 }
 
-export async function hapusJadwal(id: number): Promise<void> {
-  await pool.query(`delete from jadwal where id = $1`, [id]);
+/**
+ * Removes one slot.
+ *
+ * Scoped by class so a stray id cannot delete a slot that belongs to another
+ * class — the caller only ever sees its own board.
+ */
+export async function hapusJadwal(
+  id: number,
+  kelasId: number,
+): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    `delete from jadwal j
+      using ruang r
+      where j.id = $1 and j.ruang_id = r.id and r.kelas_id = $2`,
+    [id, kelasId],
+  );
+  return (rowCount ?? 0) > 0;
 }
 
 /**
- * Room content that must block a delete. `pertemuan` and `tugas` arrive with
- * their own screens, so the check is skipped while the table is missing rather
- * than throwing — it starts protecting the moment they exist.
+ * Room content that must block a delete.
+ *
+ * `pertemuan` and `tugas` arrive with their own screens, so each check is
+ * skipped while its table is missing rather than throwing — it starts
+ * protecting the moment the table exists. `kuis` and `diskusi` are included
+ * because the original app only checked the first two, which let a room holding
+ * a quiz be deleted and took the students' attempts with it.
  */
+const ISI_RUANG = ["pertemuan", "tugas", "kuis", "diskusi"] as const;
+type IsiRuang = (typeof ISI_RUANG)[number];
+
 async function countAnak(
-  table: "pertemuan" | "tugas",
+  table: IsiRuang,
   ruangId: number,
 ): Promise<number> {
   const { rows } = await pool.query<{ ada: boolean }>(
@@ -326,23 +359,28 @@ async function countAnak(
 
 export type HasilHapus = { ok: true } | { ok: false; error: string };
 
+/** "pertemuan", "pertemuan dan tugas", "pertemuan, tugas, dan kuis". */
+function daftarIsi(nama: IsiRuang[]): string {
+  if (nama.length === 1) return nama[0];
+  return `${nama.slice(0, -1).join(", ")} dan ${nama[nama.length - 1]}`;
+}
+
 /**
- * Removes a room — refused once it holds any meeting or assignment.
+ * Removes a room — refused once it holds any content.
  *
  * The message points at the alternative on purpose: the usual reason to delete
  * a room is "the wrong teacher", and that is a teacher swap, not a delete.
  */
 export async function hapusRuang(id: number): Promise<HasilHapus> {
-  const [pertemuan, tugas] = await Promise.all([
-    countAnak("pertemuan", id),
-    countAnak("tugas", id),
-  ]);
+  const jumlah = await Promise.all(
+    ISI_RUANG.map(async (table) => ({ table, n: await countAnak(table, id) })),
+  );
+  const terisi = jumlah.filter((item) => item.n > 0).map((item) => item.table);
 
-  if (pertemuan + tugas > 0) {
+  if (terisi.length > 0) {
     return {
       ok: false,
-      error:
-        "Ruang ini sudah punya pertemuan atau tugas, jadi tidak bisa dihapus. Ganti guru pengampunya saja, atau kosongkan isinya lebih dulu.",
+      error: `Ruang ini sudah punya ${daftarIsi(terisi)}, jadi tidak bisa dihapus. Ganti guru pengampunya saja, atau kosongkan isinya lebih dulu.`,
     };
   }
 

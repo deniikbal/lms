@@ -103,7 +103,9 @@ export function PembagianTambahMapel({
               </label>
               <Select
                 items={mapelItems}
-                value={mapelId}
+                // `null`, not the sentinel: the sentinel is not in `items`, so
+                // Base UI would print the raw string "none" in the trigger.
+                value={mapelId === NONE ? null : mapelId}
                 onValueChange={(value) => {
                   setMapelId(String(value ?? NONE));
                   setError(null);

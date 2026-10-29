@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { hashPassword } from "better-auth/crypto";
 
 import {
+  createPerson,
   deletePeopleBulk,
   deletePerson,
   getPerson,
@@ -43,6 +44,52 @@ export async function fetchTeachersAction(input: {
       : 1;
 
   return listPeople({ role: "guru", q, page, perPage: GURU_PER_PAGE });
+}
+
+/** Server Action: create a teacher account with default password set to NIP. */
+export async function createTeacherAction(
+  _prevState: TeacherFormState,
+  formData: FormData,
+): Promise<TeacherFormState> {
+  await requireRole("admin");
+
+  const name = text(formData, "name");
+  const username = text(formData, "username");
+  const email = text(formData, "email");
+  const jkRaw = text(formData, "jk");
+  const aktif = formData.get("aktif") !== null;
+
+  if (name.length < 2) {
+    return { error: "Nama minimal 2 karakter." };
+  }
+  if (!/^[a-zA-Z0-9_.]{3,50}$/.test(username)) {
+    return { error: "NIP wajib 3–50 karakter (huruf, angka, titik, underscore)." };
+  }
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { error: "Format email tidak valid." };
+  }
+  if (jkRaw && jkRaw !== "L" && jkRaw !== "P") {
+    return { error: "Jenis kelamin harus L atau P." };
+  }
+
+  try {
+    await createPerson("guru", {
+      name,
+      username,
+      email: email || null,
+      jk: jkRaw === "L" || jkRaw === "P" ? jkRaw : null,
+      kelasId: null,
+      aktif,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "username_taken") {
+      return { error: "NIP ini sudah dipakai akun lain." };
+    }
+    throw error;
+  }
+
+  revalidatePath(LIST_PATH);
+  return { error: null };
 }
 
 /** Server Action: update one teacher's profile (kelas_id is forced to null). */

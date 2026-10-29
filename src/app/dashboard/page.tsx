@@ -12,7 +12,7 @@ import { requireUser } from "@/lib/session";
  */
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<LoadingPanel label="Mengarahkan…" />}>
+    <Suspense fallback={<LoadingPanel varian="papan" />}>
       <RoleRouter />
     </Suspense>
   );

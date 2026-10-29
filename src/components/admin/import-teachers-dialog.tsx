@@ -44,14 +44,14 @@ export function ImportTeachersDialog({
       {
         NIP: "198203112008012004",
         Nama: "Drs. Budi Santoso, M.Pd.",
-        JK: "L",
+        JK: "Laki-laki",
         Email: "budi.santoso@sekolah.sch.id",
         Status: "Aktif",
       },
       {
         NIP: "199001052015031002",
         Nama: "Siti Rahmawati, S.Pd.",
-        JK: "P",
+        JK: "Perempuan",
         Email: "siti.rahmawati@sekolah.sch.id",
         Status: "Aktif",
       },

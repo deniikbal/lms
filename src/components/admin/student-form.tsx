@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 
 import {
@@ -32,6 +32,12 @@ export function StudentForm({
     initialState,
   );
   const [aktif, setAktif] = useState(student.aktif);
+
+  useEffect(() => {
+    if (state !== initialState && !state.error) {
+      window.location.href = "/admin/siswa";
+    }
+  }, [state]);
 
   return (
     <form action={formAction}>

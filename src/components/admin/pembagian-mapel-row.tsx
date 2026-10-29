@@ -211,6 +211,7 @@ export function PembagianMapelRow({
 
             <button
               type="button"
+              aria-label={`Tambah jadwal ${ruang.nama}`}
               onClick={() => {
                 setFormOpen((open) => !open);
                 setError(null);
@@ -223,61 +224,65 @@ export function PembagianMapelRow({
           </div>
 
           {formOpen ? (
-            <div className="mt-2 flex flex-wrap items-end gap-1.5 rounded-lg border border-border/70 bg-muted/30 p-2">
-              <Select
-                items={Object.fromEntries(HARI.map((h) => [String(h.value), h.label]))}
-                value={String(hari)}
-                onValueChange={(value) => setHari(Number(value))}
-              >
-                <SelectTrigger
-                  aria-label="Hari"
-                  className="w-24 justify-between data-[size=default]:h-8"
+            <div className="mt-2 space-y-1.5 rounded-lg border border-border/70 bg-muted/30 p-2">
+              <div className="flex flex-wrap items-end gap-1.5">
+                <Select
+                  items={Object.fromEntries(HARI.map((h) => [String(h.value), h.label]))}
+                  value={String(hari)}
+                  onValueChange={(value) => setHari(Number(value))}
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {HARI.map((h) => (
-                    <SelectItem key={h.value} value={String(h.value)}>
-                      {h.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    aria-label="Hari"
+                    className="w-24 justify-between data-[size=default]:h-8"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HARI.map((h) => (
+                      <SelectItem key={h.value} value={String(h.value)}>
+                        {h.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
-              <Input
-                type="time"
-                aria-label="Jam mulai"
-                value={jamMulai}
-                onChange={(event) => setJamMulai(event.target.value)}
-                className="h-8 w-[6.5rem]"
-              />
-              <span className="pb-1.5 text-xs text-muted-foreground">–</span>
-              <Input
-                type="time"
-                aria-label="Jam selesai"
-                value={jamSelesai}
-                onChange={(event) => setJamSelesai(event.target.value)}
-                className="h-8 w-[6.5rem]"
-              />
+                <Input
+                  type="time"
+                  aria-label="Jam mulai"
+                  value={jamMulai}
+                  onChange={(event) => setJamMulai(event.target.value)}
+                  className="h-8 w-[6.5rem]"
+                />
+                <span className="pb-1.5 text-xs text-muted-foreground">–</span>
+                <Input
+                  type="time"
+                  aria-label="Jam selesai"
+                  value={jamSelesai}
+                  onChange={(event) => setJamSelesai(event.target.value)}
+                  className="h-8 w-[6.5rem]"
+                />
+              </div>
 
-              <Input
-                type="url"
-                aria-label="Link Meet"
-                placeholder="Link Meet (opsional)"
-                value={linkMeet}
-                onChange={(event) => setLinkMeet(event.target.value)}
-                className="h-8 min-w-40 flex-1"
-              />
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="url"
+                  aria-label="Link Meet"
+                  placeholder="Link Meet (opsional)"
+                  value={linkMeet}
+                  onChange={(event) => setLinkMeet(event.target.value)}
+                  className="h-8 flex-1"
+                />
 
-              <Button
-                type="button"
-                size="sm"
-                onClick={handleTambahJadwal}
-                disabled={pending}
-              >
-                {pending ? <Loader2Icon className="animate-spin" /> : null}
-                Tambah
-              </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleTambahJadwal}
+                  disabled={pending}
+                >
+                  {pending ? <Loader2Icon className="animate-spin" /> : null}
+                  Tambah
+                </Button>
+              </div>
             </div>
           ) : null}
 

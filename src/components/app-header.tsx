@@ -1,12 +1,11 @@
 import Link from "next/link";
 
-import { RoleBadge } from "@/components/role-badge";
-import { SignOutButton } from "@/components/sign-out-button";
-import { ROLE_HOME, type Role } from "@/lib/roles";
+import { MenuPengguna } from "@/components/menu-pengguna";
+import { ROLE_HOME, ROLE_LABEL, type Role } from "@/lib/roles";
 
 /**
  * Server component: it receives the already-verified user as a prop, so it never
- * reads the session itself. `SignOutButton` is the only client island.
+ * reads the session itself. `MenuPengguna` is the only client island.
  */
 export function AppHeader({
   user,
@@ -20,7 +19,7 @@ export function AppHeader({
   };
 }) {
   return (
-    <header className="border-b bg-background/80 backdrop-blur">
+    <header className="border-b bg-card">
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
         <Link
           href={ROLE_HOME[user.role]}
@@ -32,18 +31,11 @@ export function AppHeader({
           LMS Sekolah
         </Link>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden text-right sm:block">
-            <p className="text-sm leading-tight font-medium text-foreground">
-              {user.name}
-            </p>
-            <p className="text-xs leading-tight text-muted-foreground">
-              {user.email || user.username || "—"}
-            </p>
-          </div>
-          <RoleBadge role={user.role} />
-          <SignOutButton />
-        </div>
+        <MenuPengguna
+          user={{ name: user.name, email: user.email || user.username || "" }}
+          peranLabel={ROLE_LABEL[user.role]}
+          beranda={{ href: ROLE_HOME[user.role], label: "Beranda" }}
+        />
       </div>
     </header>
   );

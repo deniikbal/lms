@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 
@@ -26,7 +27,7 @@ import type { Board, KelasRingkas } from "@/lib/pembagian-shared";
  * The two-card teaching-assignment board.
  *
  * The class picker navigates (`?kelas=`) because it selects *what the page is
- * about*, not a filter within one dataset — the deep links from Kelas and Mapel
+ * about, not a filter within one dataset — the deep links from Kelas and Mapel
  * land here the same way.
  */
 export function PembagianBoard({
@@ -37,6 +38,9 @@ export function PembagianBoard({
   kelasList: KelasRingkas[];
 }) {
   const [board, setBoard] = useState(initial);
+  useEffect(() => {
+    setBoard(initial);
+  }, [initial.kelas.id]);
   const router = useRouter();
   const [navigating, startNavigation] = useTransition();
 
@@ -44,7 +48,7 @@ export function PembagianBoard({
   for (const kelas of kelasList) kelasItems[String(kelas.id)] = kelas.nama;
 
   function pilihKelas(value: string | null) {
-    if (!value || Number(value) === board.kelas.id) return;
+    if (!value) return;
     startNavigation(() => {
       router.push(`/admin/ruang?kelas=${value}`);
     });

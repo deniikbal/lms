@@ -110,7 +110,7 @@ export async function updateStudentAction(
 
   revalidatePath(LIST_PATH);
   revalidatePath(`${LIST_PATH}/${id}`);
-  redirect(LIST_PATH);
+  return { error: null };
 }
 
 /** Server Action: set the student's password back to their own NISN. */

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<LoadingPanel />}>
+    <Suspense fallback={<LoadingPanel varian="panel" />}>
       <AdminDashboard />
     </Suspense>
   );

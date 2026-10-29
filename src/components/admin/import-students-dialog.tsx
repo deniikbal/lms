@@ -44,7 +44,7 @@ export function ImportStudentsDialog({
       {
         NISN: "0061234591",
         Nama: "Ahmad Fauzi",
-        JK: "L",
+        JK: "Laki-laki",
         Kelas: "X TKJ 1",
         Email: "ahmad@sekolah.sch.id",
         Status: "Aktif",
@@ -52,7 +52,7 @@ export function ImportStudentsDialog({
       {
         NISN: "0061234592",
         Nama: "Siti Nurhaliza",
-        JK: "P",
+        JK: "Perempuan",
         Kelas: "X AKL 1",
         Email: "siti@sekolah.sch.id",
         Status: "Aktif",
