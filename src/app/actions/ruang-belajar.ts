@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 
 import {
   aksesRuang,
+  getPengumpulanSiswa,
+  getTugasDetail,
+  kosongkanBerkasPengumpulan,
   kirimDiskusi,
   bolehUbah,
   simpanMeet,
@@ -17,6 +20,12 @@ import {
   tambahTugas,
   type StatusPresensi,
 } from "@/lib/ruang-belajar";
+import {
+  BATAS_BERKAS,
+  MIME_DIIZINKAN,
+  hapusDariDrive,
+  unggahKeDrive,
+} from "@/lib/drive";
 import { requireUser } from "@/lib/session";
 
 export type HasilAksi = { error: string | null };
@@ -414,11 +423,15 @@ export async function simpanPresensiAction(input: {
  *
  * The deadline and "already graded" rules are enforced in `simpanPengumpulan`,
  * so the same check covers a replayed POST.
+ *
+ * A file, when there is one, goes to Google Drive first and only its link is
+ * stored: nothing binary ever lands in Postgres.
  */
 export async function kirimTugasAction(input: {
   ruangId: number;
   tugasId: number;
   teks: string;
+  file?: File | null;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const tugasId = id(input.tugasId);
@@ -431,9 +444,66 @@ export async function kirimTugasAction(input: {
   }
 
   const isi = String(input.teks ?? "").trim();
-  if (!isi) return { error: "Tulis jawaban dulu sebelum mengumpulkan." };
   if (isi.length > 5000) {
     return { error: "Jawaban terlalu panjang (maks. 5000 karakter)." };
+  }
+
+  const berkas = input.file instanceof File && input.file.size > 0 ? input.file : null;
+  if (!isi && !berkas) {
+    return { error: "Tulis jawaban atau pilih berkas dulu sebelum mengumpulkan." };
+  }
+
+  let fileUrl: string | null = null;
+  if (berkas) {
+    if (berkas.size > BATAS_BERKAS) {
+      return { error: "Berkas terlalu besar (maks. 10 MB)." };
+    }
+    if (!MIME_DIIZINKAN.includes(berkas.type)) {
+      return { error: "Berkas harus berupa foto (JPG/PNG/WebP) atau PDF." };
+    }
+
+    const tugas = await getTugasDetail(ruangId, tugasId);
+    if (!tugas) return { error: "Tugas tidak ditemukan." };
+
+    // Old copy goes first: it frees the file name, so the replacement is still
+    // exactly the student's name rather than "Nama (1).pdf".
+    const sebelumnya = (await getPengumpulanSiswa(tugasId, user.id)).fileUrl;
+    if (sebelumnya) {
+      try {
+        await hapusDariDrive(sebelumnya);
+      } catch (galat) {
+        console.error(galat);
+        return { error: "Berkas lama gagal dihapus dari Drive. Coba kirim lagi." };
+      }
+    }
+
+    // The student's own name is the file name, so a teacher browsing Drive reads
+    // the folder like a stack of collected papers.
+    const ekstensi = (berkas.name.split(".").pop() ?? "bin")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 5);
+    const namaBerkas = `${user.name.replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 100) || "siswa"}.${ekstensi}`;
+
+    try {
+      const hasil = await unggahKeDrive({
+        nama: namaBerkas,
+        mime: berkas.type,
+        data: Buffer.from(await berkas.arrayBuffer()),
+        folderPath: [akses.ruang.kelasNama, tugas.judul],
+      });
+      fileUrl = hasil.url;
+    } catch (galat) {
+      console.error(galat);
+      // The old copy is already gone, so the row must stop pointing at it.
+      if (sebelumnya) await kosongkanBerkasPengumpulan(tugasId, user.id);
+      return {
+        error:
+          galat instanceof Error
+            ? galat.message
+            : "Berkas gagal diunggah ke Google Drive.",
+      };
+    }
   }
 
   const hasil = await simpanPengumpulan({
@@ -441,7 +511,8 @@ export async function kirimTugasAction(input: {
     tugasId,
     siswaId: user.id,
     kelasId: akses.ruang.kelasId,
-    teks: isi,
+    teks: isi || null,
+    fileUrl,
   });
   if (!hasil.ok) return { error: hasil.error };
 

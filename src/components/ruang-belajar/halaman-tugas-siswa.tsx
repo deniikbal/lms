@@ -99,9 +99,9 @@ export function HalamanTugasSiswa({
         >
           <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            Tugas ini meminta berkas, tetapi pengumpulan berkas belum tersedia.
-            Untuk sekarang kirim jawaban sebagai teks — Anda bisa menempelkan
-            tautan berkas di dalamnya.
+            Tugas ini menerima berkas: foto hasil kerja (JPG/PNG/WebP) atau PDF,
+            maks. 10 MB. Berkas tersimpan di Google Drive sekolah dan ikut
+            terkirim bersama teks jawaban Anda.
           </span>
         </p>
       ) : null}

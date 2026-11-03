@@ -2,7 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, Loader2Icon, SendIcon } from "lucide-react";
+import {
+  CheckIcon,
+  FileTextIcon,
+  ImageIcon,
+  Loader2Icon,
+  SendIcon,
+  XIcon,
+} from "lucide-react";
 
 import { kirimTugasAction } from "@/app/actions/ruang-belajar";
 import { TONE } from "@/components/ruang-belajar/tone";
@@ -17,12 +24,11 @@ import {
   type TugasDetail,
 } from "@/lib/ruang-belajar-shared";
 
-/**
- * The student's answer box.
- *
- * The same `bolehKirim` rule the server uses decides whether the box is usable,
- * so the page never offers a send that the database would refuse.
- */
+/** Mirrors `MIME_DIIZINKAN` in `lib/drive.ts` — the browser hint, not the rule. */
+const TERIMA = "image/jpeg,image/png,image/webp,image/heic,application/pdf";
+const BATAS_MB = 10;
+
+/** The student's answer box: typed text, an uploaded photo/PDF, or both. */
 export function FormPengumpulan({
   ruangId,
   tugas,
@@ -34,6 +40,9 @@ export function FormPengumpulan({
 }) {
   const router = useRouter();
   const [teks, setTeks] = useState(pengumpulan.teks ?? "");
+  // A `File` is passed straight into the server action, so nothing is uploaded
+  // to a separate route and there is no temp file to clean up.
+  const [berkas, setBerkas] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -46,11 +55,17 @@ export function FormPengumpulan({
     setError(null);
     setPesan(null);
     startTransition(async () => {
-      const hasil = await kirimTugasAction({ ruangId, tugasId: tugas.id, teks });
+      const hasil = await kirimTugasAction({
+        ruangId,
+        tugasId: tugas.id,
+        teks,
+        file: berkas,
+      });
       if (hasil.error) {
         setError(hasil.error);
         return;
       }
+      setBerkas(null);
       setPesan(
         pengumpulan.dikumpulkan
           ? "Jawaban diperbarui."
@@ -102,7 +117,7 @@ export function FormPengumpulan({
               setError(null);
               setPesan(null);
             }}
-            rows={10}
+            rows={8}
             maxLength={5000}
             disabled={terkunci || pending}
             placeholder="Tulis jawaban Anda di sini…"
@@ -111,6 +126,58 @@ export function FormPengumpulan({
           <p className="text-right text-[0.7rem] tabular-nums text-muted-foreground">
             {teks.length}/5000
           </p>
+        </div>
+
+        <div className="mt-1 space-y-1.5">
+          <Label htmlFor="berkas-tugas">Foto atau berkas</Label>
+          <input
+            id="berkas-tugas"
+            type="file"
+            accept={TERIMA}
+            disabled={terkunci || pending}
+            onChange={(event) => {
+              setBerkas(event.target.files?.[0] ?? null);
+              setError(null);
+              setPesan(null);
+            }}
+            className="block w-full cursor-pointer rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-foreground disabled:cursor-not-allowed disabled:bg-muted/40"
+          />
+          <p className="text-[0.7rem] text-muted-foreground">
+            Foto (JPG/PNG/WebP) atau PDF, maks. {BATAS_MB} MB. Berkas disimpan di
+            Google Drive; mengirim berkas baru menghapus berkas lama.
+          </p>
+
+          {berkas ? (
+            <p className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1.5 text-xs text-foreground">
+              <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">{berkas.name}</span>
+              <span className="shrink-0 text-muted-foreground tabular-nums">
+                {(berkas.size / 1024 / 1024).toFixed(1)} MB
+              </span>
+              {!pending ? (
+                <button
+                  type="button"
+                  onClick={() => setBerkas(null)}
+                  aria-label="Batalkan berkas"
+                  className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                >
+                  <XIcon className="size-3.5" />
+                </button>
+              ) : null}
+            </p>
+          ) : null}
+
+          {pengumpulan.fileUrl ? (
+            <a
+              href={pengumpulan.fileUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-4 hover:text-primary"
+            >
+              <FileTextIcon className="size-3.5" />
+              Berkas yang sudah Anda kirim
+            </a>
+          ) : null}
         </div>
 
         {terkunci ? (
@@ -142,7 +209,7 @@ export function FormPengumpulan({
               type="button"
               size="sm"
               onClick={kirim}
-              disabled={pending || teks.trim().length === 0}
+              disabled={pending || (teks.trim().length === 0 && !berkas)}
             >
               {pending ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
               {pengumpulan.dikumpulkan ? "Perbarui jawaban" : "Kirim tugas"}

@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  experimental: {
+    // Task uploads: 10 MB file + multipart overhead, above the 1 MB default.
+    serverActions: { bodySizeLimit: "12mb" },
+  },
 };
 
 export default nextConfig;

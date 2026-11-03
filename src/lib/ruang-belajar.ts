@@ -356,6 +356,7 @@ export async function listPengumpulan(
     dikumpulkan: boolean;
     dikumpulkan_at: string | null;
     teks: string | null;
+    file_url: string | null;
     nilai: number | null;
     terlambat: boolean;
   }>(
@@ -367,6 +368,7 @@ export async function listPengumpulan(
             to_char(p.dikumpulkan_at at time zone 'Asia/Jakarta',
                     'YYYY-MM-DD HH24:MI') as dikumpulkan_at,
             p.teks,
+            p.file_url,
             p.nilai,
             coalesce(p.dikumpulkan_at > t.tenggat, false) as terlambat
        from "user" u
@@ -384,6 +386,7 @@ export async function listPengumpulan(
     dikumpulkan: row.dikumpulkan,
     dikumpulkanAt: row.dikumpulkan_at,
     teks: row.teks,
+    fileUrl: row.file_url,
     nilai: row.nilai,
     terlambat: row.terlambat,
   }));
@@ -398,6 +401,7 @@ export async function getPengumpulanSiswa(
     dikumpulkan: boolean;
     dikumpulkan_at: string | null;
     teks: string | null;
+    file_url: string | null;
     nilai: number | null;
     terlambat: boolean;
   }>(
@@ -406,6 +410,7 @@ export async function getPengumpulanSiswa(
             to_char(p.dikumpulkan_at at time zone 'Asia/Jakarta',
                     'YYYY-MM-DD HH24:MI') as dikumpulkan_at,
             p.teks,
+            p.file_url,
             p.nilai,
             coalesce(p.dikumpulkan_at > t.tenggat, false) as terlambat
        from tugas t
@@ -420,6 +425,7 @@ export async function getPengumpulanSiswa(
       dikumpulkan: false,
       dikumpulkanAt: null,
       teks: null,
+      fileUrl: null,
       nilai: null,
       terlambat: false,
     };
@@ -429,6 +435,7 @@ export async function getPengumpulanSiswa(
     dikumpulkan: row.dikumpulkan,
     dikumpulkanAt: row.dikumpulkan_at,
     teks: row.teks,
+    fileUrl: row.file_url,
     nilai: row.nilai,
     terlambat: row.terlambat,
   };
@@ -1402,12 +1409,16 @@ export async function simpanPengumpulan({
   siswaId,
   kelasId,
   teks,
+  fileUrl = null,
 }: {
   ruangId: number;
   tugasId: number;
   siswaId: string;
   kelasId: number;
-  teks: string;
+  /** Null keeps whatever text the student sent before. */
+  teks: string | null;
+  /** Null keeps the file the student uploaded before. */
+  fileUrl?: string | null;
 }): Promise<Hasil> {
   const { rows } = await pool.query<{
     terbit: boolean;
@@ -1445,14 +1456,33 @@ export async function simpanPengumpulan({
   if (!cek.ok) return { ok: false, error: cek.alasan };
 
   await pool.query(
-    `insert into pengumpulan (tugas_id, siswa_id, teks)
-     values ($1, $2, $3)
+    `insert into pengumpulan (tugas_id, siswa_id, teks, file_url)
+     values ($1, $2, $3, $4)
      on conflict (tugas_id, siswa_id)
-     do update set teks = excluded.teks, dikumpulkan_at = now()`,
-    [tugasId, siswaId, teks],
+     do update set teks = coalesce(excluded.teks, pengumpulan.teks),
+                   file_url = coalesce(excluded.file_url, pengumpulan.file_url),
+                   dikumpulkan_at = now()`,
+    [tugasId, siswaId, teks, fileUrl],
   );
 
   return { ok: true };
+}
+
+/**
+ * Clears the stored Drive link for one submission.
+ *
+ * Used when a replacement upload failed after the old file was already deleted:
+ * the sheet must not keep offering a link to a file that no longer exists.
+ */
+export async function kosongkanBerkasPengumpulan(
+  tugasId: number,
+  siswaId: string,
+): Promise<void> {
+  await pool.query(
+    `update pengumpulan set file_url = null
+      where tugas_id = $1 and siswa_id = $2`,
+    [tugasId, siswaId],
+  );
 }
 
 /**

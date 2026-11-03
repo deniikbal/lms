@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   CheckIcon,
   ChevronDownIcon,
+  FileTextIcon,
   Loader2Icon,
   UsersIcon,
 } from "lucide-react";
@@ -290,6 +291,17 @@ export function NilaiTugasGrid({
                           <p className="text-sm whitespace-pre-line text-foreground">
                             {item.teks?.trim() || "—"}
                           </p>
+                          {item.fileUrl ? (
+                            <a
+                              href={item.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="mt-1 inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-4 hover:text-primary"
+                            >
+                              <FileTextIcon className="size-3.5" />
+                              Buka berkas
+                            </a>
+                          ) : null}
                         </td>
                       </tr>
                     ) : null}

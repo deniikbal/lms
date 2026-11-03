@@ -597,6 +597,8 @@ export type PengumpulanRow = {
   /** `28 Okt 2026 12.30`, or null. */
   dikumpulkanAt: string | null;
   teks: string | null;
+  /** Google Drive link for the uploaded photo or PDF, or null. */
+  fileUrl: string | null;
   nilai: number | null;
   terlambat: boolean;
 };
@@ -605,6 +607,7 @@ export type PengumpulanSiswa = {
   dikumpulkan: boolean;
   dikumpulkanAt: string | null;
   teks: string | null;
+  fileUrl: string | null;
   nilai: number | null;
   terlambat: boolean;
 };
