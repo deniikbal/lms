@@ -248,6 +248,8 @@ export async function listTugas(
     tenggat: string | null;
     terkumpul: number;
     dinilai: number;
+    lampiran_nama: string | null;
+    lampiran_url: string | null;
     dikumpulkan_siswa: boolean;
     nilai_siswa: number | null;
     terlambat_siswa: boolean | null;
@@ -258,6 +260,8 @@ export async function listTugas(
             t.terbit,
             t.boleh_terlambat,
             to_char(t.tenggat at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as tenggat,
+            t.lampiran_nama,
+            t.lampiran_url,
             (select count(*)::int from pengumpulan p
               where p.tugas_id = t.id
                 and (p.teks is not null or p.file_url is not null)) as terkumpul,
@@ -288,6 +292,8 @@ export async function listTugas(
     tenggat: row.tenggat,
     terkumpul: row.terkumpul,
     dinilai: row.dinilai,
+    lampiranNama: row.lampiran_nama,
+    lampiranUrl: row.lampiran_url,
     // A row may exist with a grade but no answer (paper work). Either is worth
     // showing the student, so the "Tanpa jawaban" state survives the round trip.
     pengumpulanSiswa:
@@ -316,6 +322,8 @@ export async function getTugasDetail(
     boleh_terlambat: boolean;
     tenggat: string | null;
     lewat_tenggat: boolean;
+    lampiran_nama: string | null;
+    lampiran_url: string | null;
   }>(
     `select t.id,
             t.ruang_id,
@@ -325,7 +333,9 @@ export async function getTugasDetail(
             t.terbit,
             t.boleh_terlambat,
             to_char(t.tenggat at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as tenggat,
-            coalesce(t.tenggat is not null and now() > t.tenggat, false) as lewat_tenggat
+            coalesce(t.tenggat is not null and now() > t.tenggat, false) as lewat_tenggat,
+            t.lampiran_nama,
+            t.lampiran_url
        from tugas t
       where t.id = $1 and t.ruang_id = $2`,
     [tugasId, ruangId],
@@ -344,6 +354,8 @@ export async function getTugasDetail(
     bolehTerlambat: row.boleh_terlambat,
     tenggat: row.tenggat,
     lewatTenggat: row.lewat_tenggat,
+    lampiranNama: row.lampiran_nama,
+    lampiranUrl: row.lampiran_url,
   };
 }
 
@@ -990,6 +1002,8 @@ export async function ubahTugas({
   tipe,
   bolehTerlambat,
   terbit,
+  lampiranNama,
+  lampiranUrl,
 }: {
   ruangId: number;
   tugasId: number;
@@ -998,6 +1012,8 @@ export async function ubahTugas({
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
   terbit: boolean;
+  lampiranNama: string | null;
+  lampiranUrl: string | null;
 }): Promise<Hasil> {
   const { rowCount } = await pool.query(
     `update tugas set
@@ -1006,9 +1022,11 @@ export async function ubahTugas({
                            else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
             tipe = $5,
             boleh_terlambat = $6,
-            terbit = $7
+            terbit = $7,
+            lampiran_nama = $8,
+            lampiran_url = $9
       where id = $1 and ruang_id = $2`,
-    [tugasId, ruangId, judul, tenggat, tipe, bolehTerlambat, terbit],
+    [tugasId, ruangId, judul, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
   );
   if (!rowCount) return { ok: false, error: "Tugas tidak ditemukan di ruang ini." };
   return { ok: true };
@@ -1042,6 +1060,46 @@ export async function hapusTugas({
     };
   }
   return { ok: true };
+}
+
+/**
+ * Delete one student's submission: their answer text, Drive files, grade and
+ * timestamp all go, and the row itself is removed so the student shows as
+ * "Belum mengumpulkan" again. Called from the teacher's submission sheet.
+ */
+export async function hapusPengumpulan({
+  ruangId,
+  tugasId,
+  siswaId,
+}: {
+  ruangId: number;
+  tugasId: number;
+  siswaId: string;
+}): Promise<{ ok: boolean; fileUrls: string[] }> {
+  // Collect Drive links first — the row is the only place they live.
+  const { rows } = await pool.query<{ file_url: string | null }>(
+    `select p.file_url
+       from pengumpulan p
+       join tugas t on t.id = p.tugas_id
+      where p.tugas_id = $1 and p.siswa_id = $2 and t.ruang_id = $3`,
+    [tugasId, siswaId, ruangId],
+  );
+
+  const { rowCount } = await pool.query(
+    `delete from pengumpulan p
+       using tugas t
+      where p.tugas_id = t.id and t.ruang_id = $3
+        and p.tugas_id = $1 and p.siswa_id = $2`,
+    [tugasId, siswaId, ruangId],
+  );
+
+  if (!rowCount) return { ok: false, fileUrls: [] };
+  return {
+    ok: true,
+    fileUrls: rows
+      .map((row) => row.file_url)
+      .filter((url): url is string => Boolean(url)),
+  };
 }
 
 export async function ubahPertemuan({
@@ -1138,6 +1196,8 @@ export async function tambahTugas({
   tipe,
   bolehTerlambat,
   terbit,
+  lampiranNama,
+  lampiranUrl,
 }: {
   ruangId: number;
   judul: string;
@@ -1145,14 +1205,17 @@ export async function tambahTugas({
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
   terbit: boolean;
+  lampiranNama: string | null;
+  lampiranUrl: string | null;
 }): Promise<Hasil> {
   await pool.query(
-    `insert into tugas (ruang_id, judul, tenggat, tipe, boleh_terlambat, terbit)
+    `insert into tugas (ruang_id, judul, tenggat, tipe, boleh_terlambat, terbit,
+                        lampiran_nama, lampiran_url)
      values ($1, $2,
              case when $3::text is null then null
                   else ($3::text)::timestamp at time zone 'Asia/Jakarta' end,
-             $4, $5, $6)`,
-    [ruangId, judul, tenggat, tipe, bolehTerlambat, terbit],
+             $4, $5, $6, $7, $8)`,
+    [ruangId, judul, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
   );
   return { ok: true };
 }

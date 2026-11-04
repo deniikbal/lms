@@ -171,6 +171,8 @@ export function TabTugas({
                             tipe: item.tipe,
                             bolehTerlambat: item.bolehTerlambat,
                             terbit: item.terbit,
+                            lampiranNama: item.lampiranNama,
+                            lampiranUrl: item.lampiranUrl,
                           }}
                           pemicu={
                             <Button
@@ -285,6 +287,8 @@ export function TabTugas({
                         tipe: item.tipe,
                         bolehTerlambat: item.bolehTerlambat,
                         terbit: item.terbit,
+                        lampiranNama: item.lampiranNama,
+                        lampiranUrl: item.lampiranUrl,
                       }}
                       pemicu={
                         <Button

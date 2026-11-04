@@ -85,6 +85,8 @@ async function main() {
         tipe             text not null default 'file',
         boleh_terlambat  boolean not null default true,
         terbit           boolean not null default false,
+        lampiran_nama    text,
+        lampiran_url     text,
         created_at       timestamptz not null default now(),
         updated_at       timestamptz not null default now(),
         constraint tugas_tipe check (tipe in ('file','teks','keduanya'))

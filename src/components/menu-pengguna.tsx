@@ -29,10 +29,20 @@ export function MenuPengguna({
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [gagal, setGagal] = useState(false);
 
   async function keluar() {
     setPending(true);
-    await signOut();
+    setGagal(false);
+    // signOut bisa gagal (mis. origin mismatch / jaringan). Jika diabaikan,
+    // pengguna "terlihat" logout tapi sesinya masih hidup dan /login
+    // melempar balik ke dashboard — bug lama di deployment online.
+    const hasil = await signOut().catch(() => null);
+    if (!hasil || hasil.error) {
+      setPending(false);
+      setGagal(true);
+      return;
+    }
     router.replace("/login");
     router.refresh();
   }
@@ -104,7 +114,7 @@ export function MenuPengguna({
               className={cn(itemClass, "text-destructive data-disabled:opacity-60")}
             >
               <LogOutIcon className="size-4" />
-              {pending ? "Keluar…" : "Keluar"}
+              {pending ? "Keluar…" : gagal ? "Gagal — coba lagi" : "Keluar"}
             </MenuPrimitive.Item>
           </MenuPrimitive.Popup>
         </MenuPrimitive.Positioner>

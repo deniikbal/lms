@@ -59,6 +59,9 @@ export type TugasEdit = {
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
   terbit: boolean;
+  /** Optional PDF the teacher attached (Drive). */
+  lampiranNama: string | null;
+  lampiranUrl: string | null;
 };
 
 const JUDUL: Record<JenisBuat, { tombol: string; judul: string; deskripsi: string }> = {
@@ -201,6 +204,8 @@ export function BuatDialog({
                   tipe,
                   bolehTerlambat,
                   terbit,
+                  lampiran,
+                  hapusLampiran: hapusLampiran && !lampiran,
                 })
               : await tambahTugasAction({
                   ruangId,
@@ -209,6 +214,7 @@ export function BuatDialog({
                   tipe,
                   bolehTerlambat,
                   terbit,
+                  lampiran,
                 })
             : await tambahKuisAction({
                 ruangId,
@@ -246,7 +252,8 @@ export function BuatDialog({
         </DialogTrigger>
       )}
 
-      <DialogContent>
+      {/* Lebar di desktop + isi bisa discroll: form panjang tetap muat satu layar. */}
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader>
           <DialogTitle>
             {pertemuan
@@ -288,7 +295,8 @@ export function BuatDialog({
 
           {jenis === "pertemuan" ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              {/* Tanggal + jendela presensi berdampingan — hemat tinggi. */}
+              <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="pertemuan-tanggal">Tanggal</Label>
                   <Input
@@ -299,48 +307,76 @@ export function BuatDialog({
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="pertemuan-video">Link video (opsional)</Label>
+                  <Label htmlFor="presensi-buka">Presensi dibuka</Label>
                   <Input
-                    id="pertemuan-video"
-                    type="url"
-                    value={videoUrl}
-                    onChange={(event) => setVideoUrl(event.target.value)}
-                    placeholder="https://…"
+                    id="presensi-buka"
+                    type="time"
+                    value={presensiBuka}
+                    onChange={(event) => setPresensiBuka(event.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="presensi-tutup">Presensi ditutup</Label>
+                  <Input
+                    id="presensi-tutup"
+                    type="time"
+                    value={presensiTutup}
+                    onChange={(event) => setPresensiTutup(event.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="pertemuan-lampiran">Lampiran PDF (opsional)</Label>
-                {pertemuan?.lampiranNama && !lampiran && !hapusLampiran ? (
-                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
-                    <span className="truncate text-foreground">{pertemuan.lampiranNama}</span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="shrink-0 text-muted-foreground hover:text-destructive"
-                      onClick={() => setHapusLampiran(true)}
-                    >
-                      Hapus
-                    </Button>
-                  </div>
-                ) : (
-                  <Input
-                    id="pertemuan-lampiran"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={(event) => {
-                      setLampiran(event.target.files?.[0] ?? null);
-                      setHapusLampiran(false);
-                    }}
+              {/* Video + lampiran berdampingan di desktop. */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="pertemuan-video">
+                    Link video (opsional — satu URL per baris)
+                  </Label>
+                  <textarea
+                    id="pertemuan-video"
+                    value={videoUrl}
+                    onChange={(event) => setVideoUrl(event.target.value)}
+                    placeholder={"https://youtube.com/watch?v=…\nhttps://youtube.com/watch?v=…"}
+                    rows={2}
+                    className="flex min-h-0 h-[calc(1.5rem*2+1rem)] w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
                   />
-                )}
-                {pertemuan?.lampiranNama && hapusLampiran ? (
-                  <p className="text-[0.7rem] text-muted-foreground">
-                    Lampiran lama dihapus saat disimpan.
+                  <p className="text-xs text-muted-foreground">
+                    Bisa lebih dari satu video — tulis satu link per baris.
                   </p>
-                ) : null}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="pertemuan-lampiran">Lampiran PDF (opsional)</Label>
+                  {pertemuan?.lampiranNama && !lampiran && !hapusLampiran ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
+                      <span className="truncate text-foreground">{pertemuan.lampiranNama}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 text-muted-foreground hover:text-destructive"
+                        onClick={() => setHapusLampiran(true)}
+                      >
+                        Hapus
+                      </Button>
+                    </div>
+                  ) : (
+                    <Input
+                      id="pertemuan-lampiran"
+                      type="file"
+                      accept="application/pdf"
+                      onChange={(event) => {
+                        setLampiran(event.target.files?.[0] ?? null);
+                        setHapusLampiran(false);
+                      }}
+                    />
+                  )}
+                  {pertemuan?.lampiranNama && hapusLampiran ? (
+                    <p className="text-[0.7rem] text-muted-foreground">
+                      Lampiran lama dihapus saat disimpan.
+                    </p>
+                  ) : null}
+                </div>
               </div>
 
               {pertemuan ? null : (
@@ -374,27 +410,6 @@ export function BuatDialog({
                 </span>
                 <Switch checked={buatMeet} onCheckedChange={setBuatMeet} />
               </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="presensi-buka">Presensi dibuka</Label>
-                  <Input
-                    id="presensi-buka"
-                    type="time"
-                    value={presensiBuka}
-                    onChange={(event) => setPresensiBuka(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="presensi-tutup">Presensi ditutup</Label>
-                  <Input
-                    id="presensi-tutup"
-                    type="time"
-                    value={presensiTutup}
-                    onChange={(event) => setPresensiTutup(event.target.value)}
-                  />
-                </div>
-              </div>
             </>
           ) : null}
 
@@ -434,6 +449,39 @@ export function BuatDialog({
                 <span className="text-sm text-foreground">Boleh terlambat</span>
                 <Switch checked={bolehTerlambat} onCheckedChange={setBolehTerlambat} />
               </label>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="tugas-lampiran">Lampiran PDF (opsional)</Label>
+                {tugas?.lampiranNama && !lampiran && !hapusLampiran ? (
+                  <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
+                    <span className="truncate text-foreground">{tugas.lampiranNama}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setHapusLampiran(true)}
+                    >
+                      Hapus
+                    </Button>
+                  </div>
+                ) : (
+                  <Input
+                    id="tugas-lampiran"
+                    type="file"
+                    accept="application/pdf"
+                    onChange={(event) => {
+                      setLampiran(event.target.files?.[0] ?? null);
+                      setHapusLampiran(false);
+                    }}
+                  />
+                )}
+                {tugas?.lampiranNama && hapusLampiran ? (
+                  <p className="text-[0.7rem] text-muted-foreground">
+                    Lampiran lama dihapus saat disimpan.
+                  </p>
+                ) : null}
+              </div>
             </>
           ) : null}
 

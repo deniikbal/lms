@@ -242,11 +242,22 @@ async function IsiTab({
       return <TabKuis kuis={kuis} peran={peran} base={base} />;
     }
     case "presensi": {
-      const matriks = await getPresensiMatriks(ruang.id, ruang.kelasId);
+      // Siswa hanya melihat baris presensinya sendiri; guru dan admin melihat semua.
+      const matriksPenuh = await getPresensiMatriks(ruang.id, ruang.kelasId);
+      const matriks = peran === "siswa"
+        ? {
+            ...matriksPenuh,
+            siswa: matriksPenuh.siswa.filter((s) => s.id === userId),
+          }
+        : matriksPenuh;
       return <TabPresensi matriks={matriks} siswaId={userId} />;
     }
     case "nilai": {
-      const nilai = await getNilai(ruang.id, ruang.kelasId);
+      // Siswa hanya melihat rapornya sendiri; guru dan admin melihat semua.
+      const semua = await getNilai(ruang.id, ruang.kelasId);
+      const nilai = peran === "siswa"
+        ? semua.filter((row) => row.siswaId === userId)
+        : semua;
       return <TabNilai nilai={nilai} ruang={ruang} />;
     }
     case "diskusi": {

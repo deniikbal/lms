@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckIcon, ExternalLinkIcon, Loader2Icon } from "lucide-react";
+import { CheckIcon, Loader2Icon } from "lucide-react";
 
 import { simpanNilaiTugasAction } from "@/app/actions/ruang-belajar";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,12 @@ import {
  */
 function toPreviewUrl(url: string): string {
   const cocok = url.match(/drive\.google\.com\/file\/d\/([\w-]+)/);
-  return cocok ? `https://drive.google.com/file/d/${cocok[1]}/preview` : url;
+  // `embedded=true` menyembunyikan bar atas Drive (yang berisi tombol
+  // pop-out "Lepas"). Tanpa itu, iframe menampilkan tombol bawaan Drive
+  // di pojok kanan atas modal.
+  return cocok
+    ? `https://drive.google.com/file/d/${cocok[1]}/preview?embedded=true`
+    : url;
 }
 
 /**
@@ -99,10 +104,10 @@ export function LihatBerkasNilai({
         }
       />
 
-      {/* Edge-to-edge: no padding, no header, the PDF is the modal. */}
+      {/* Tanpa border/ring: dokumen jadi modal, hanya close di pojok kanan atas. */}
       <DialogContent
         showCloseButton
-        className="max-h-[92vh] gap-0 overflow-hidden rounded-xl p-0 sm:max-w-3xl"
+        className="max-h-[92vh] gap-0 overflow-hidden rounded-xl border-0 p-0 ring-0 sm:max-w-3xl"
       >
         <div className="relative flex h-[92vh] flex-col">
           {tautan.length > 1 ? (
@@ -166,6 +171,13 @@ export function LihatBerkasNilai({
                 setSukses(false);
                 setError(null);
               }}
+              onKeyDown={(event) => {
+                // Enter di kolom nilai = simpan.
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  simpan();
+                }
+              }}
               className={cn(
                 "h-9 w-32 shrink-0 tabular-nums",
                 !sah && "border-destructive",
@@ -181,17 +193,6 @@ export function LihatBerkasNilai({
               {pending ? <Loader2Icon className="animate-spin" /> : null}
               Simpan nilai
             </Button>
-            {tautan.length > 0 ? (
-              <a
-                href={berkasKini ?? tautan[0]}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label="Buka di tab baru"
-              >
-                <ExternalLinkIcon className="size-4" />
-              </a>
-            ) : null}
           </div>
         </div>
       </DialogContent>

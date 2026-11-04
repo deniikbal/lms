@@ -18,6 +18,7 @@ import {
   simpanPresensi,
   ubahTugas,
   hapusPertemuan,
+  hapusPengumpulan,
   hapusTugas,
   tambahKuis,
   tambahPertemuan,
@@ -146,8 +147,21 @@ function telaahPertemuan(input: {
     };
   }
 
-  const video = urlAtauNull(input.videoUrl);
-  if (!video.ok) return { ok: false, error: "Link video harus berupa URL lengkap." };
+  // Link video bisa lebih dari satu — dipisah baris baru di kolom video_url
+  // (pola yang sama dengan pecahBerkas untuk lampiran multi-file).
+  const videoMentah = String(input.videoUrl ?? "");
+  const videoBaris = videoMentah
+    .split("\n")
+    .map((b) => b.trim())
+    .filter(Boolean);
+  const videoUrls: string[] = [];
+  for (const baris of videoBaris) {
+    const video = urlAtauNull(baris);
+    if (!video.ok) {
+      return { ok: false, error: `Link video tidak valid: ${baris}` };
+    }
+    videoUrls.push(video.url!);
+  }
 
   return {
     ok: true,
@@ -155,7 +169,7 @@ function telaahPertemuan(input: {
       judul,
       tanggal,
       terbit: Boolean(input.terbit),
-      videoUrl: video.url,
+      videoUrl: videoUrls.length > 0 ? videoUrls.join("\n") : null,
       presensiBuka: buka,
       presensiTutup: tutup,
     },
@@ -212,8 +226,8 @@ async function lampiranPertemuan(
       nama: namaBersih,
       mime: berkas.type,
       data: Buffer.from(await berkas.arrayBuffer()),
-      // `Pertemuan` first, so the root does not mix meeting PDFs with student
-      // submissions; the class name second, mirroring the per-class drawers.
+      // Lampiran guru (pertemuan & tugas) masuk folder `Pertemuan` yang sama;
+      // kelas jadi sub-folder, mengikuti laci per kelas seperti pengumpulan siswa.
       folderPath: ["Pertemuan", kelasNama],
     });
     return { error: null, nama: namaBersih, url: hasil.url };
@@ -420,6 +434,7 @@ export async function tambahTugasAction(input: {
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
   terbit: boolean;
+  lampiran?: File | null;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   if (!ruangId) return { error: "Ruang belajar tidak ditemukan." };
@@ -439,6 +454,9 @@ export async function tambahTugasAction(input: {
   const tenggat = input.tenggat ? tanggalJam(input.tenggat) : null;
   if (input.tenggat && !tenggat) return { error: "Tenggat tidak valid." };
 
+  const berkas = await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama);
+  if (berkas.error !== null) return { error: berkas.error };
+
   const hasil = await tambahTugas({
     ruangId,
     judul,
@@ -446,6 +464,8 @@ export async function tambahTugasAction(input: {
     tipe,
     bolehTerlambat: Boolean(input.bolehTerlambat),
     terbit: Boolean(input.terbit),
+    lampiranNama: berkas.nama,
+    lampiranUrl: berkas.url,
   });
   if (!hasil.ok) return { error: hasil.error };
 
@@ -461,6 +481,8 @@ export async function ubahTugasAction(input: {
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
   terbit: boolean;
+  lampiran?: File | null;
+  hapusLampiran?: boolean;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const tugasId = id(input.tugasId);
@@ -481,6 +503,25 @@ export async function ubahTugasAction(input: {
   const tenggat = input.tenggat ? tanggalJam(input.tenggat) : null;
   if (input.tenggat && !tenggat) return { error: "Tenggat tidak valid." };
 
+  const lama = await getTugasDetail(ruangId, tugasId);
+  if (!lama) return { error: "Tugas tidak ditemukan di ruang ini." };
+
+  const berkas = await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama);
+  if (berkas.error !== null) return { error: berkas.error };
+  const lampiranNama = berkas.nama;
+  const lampiranUrl = berkas.url;
+
+  // Lampiran lama dibuang dari Drive saat diganti berkas baru atau saat
+  // guru menandainya untuk dihapus.
+  if ((lampiranUrl || input.hapusLampiran) && lama.lampiranUrl) {
+    try {
+      await hapusDariDrive(lama.lampiranUrl);
+    } catch (galat) {
+      console.error(galat);
+      return { error: "Lampiran lama gagal dihapus dari Drive. Coba lagi." };
+    }
+  }
+
   const hasil = await ubahTugas({
     ruangId,
     tugasId,
@@ -489,8 +530,48 @@ export async function ubahTugasAction(input: {
     tipe,
     bolehTerlambat: Boolean(input.bolehTerlambat),
     terbit: Boolean(input.terbit),
+    lampiranNama,
+    lampiranUrl,
   });
   if (!hasil.ok) return { error: hasil.error };
+
+  segarkan(ruangId);
+  return { error: null };
+}
+
+/**
+ * Delete one student's submission on a task. The SQL delete is the authority;
+ * Drive cleanup runs after it, best-effort — a failed file delete must not
+ * resurrect the row, and the teacher can always remove the file manually.
+ */
+export async function hapusPengumpulanAction(input: {
+  ruangId: number;
+  tugasId: number;
+  siswaId: string;
+}): Promise<HasilAksi> {
+  const ruangId = id(input.ruangId);
+  const tugasId = id(input.tugasId);
+  const siswaId = teks(input.siswaId, 64);
+  if (!ruangId || !tugasId || !siswaId) {
+    return { error: "Pengumpulan tidak ditemukan." };
+  }
+
+  const { akses, boleh } = await siapkan(ruangId);
+  if (!akses) return { error: "Anda tidak punya akses ke ruang ini." };
+  if (!boleh) {
+    return { error: "Hanya guru pengampu yang bisa menghapus pengumpulan." };
+  }
+
+  const hasil = await hapusPengumpulan({ ruangId, tugasId, siswaId });
+  if (!hasil.ok) return { error: "Pengumpulan tidak ditemukan atau sudah terhapus." };
+
+  for (const url of hasil.fileUrls) {
+    try {
+      await hapusDariDrive(url);
+    } catch {
+      // Best-effort: the database row is gone, which is what matters.
+    }
+  }
 
   segarkan(ruangId);
   return { error: null };
@@ -508,8 +589,19 @@ export async function hapusTugasAction(input: {
   if (!akses) return { error: "Anda tidak punya akses ke ruang ini." };
   if (!boleh) return { error: "Hanya guru pengampu yang bisa menghapus tugas." };
 
+  const lama = await getTugasDetail(ruangId, tugasId);
+
   const hasil = await hapusTugas({ ruangId, tugasId });
   if (!hasil.ok) return { error: hasil.error };
+
+  // Best-effort: baris sudah terhapus, berkas Drive menyusul kalau bisa.
+  if (lama?.lampiranUrl) {
+    try {
+      await hapusDariDrive(lama.lampiranUrl);
+    } catch {
+      // biarkan — data database sudah aman
+    }
+  }
 
   segarkan(ruangId);
   return { error: null };

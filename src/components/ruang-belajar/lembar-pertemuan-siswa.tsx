@@ -25,6 +25,7 @@ import {
   hariIni,
   keteranganJendelaSiswa,
   labelSumberPresensi,
+  pecahBerkas,
   STATUS_PRESENSI,
   type PertemuanSiswa,
   type RuangHeader,
@@ -200,10 +201,10 @@ export function LembarPertemuanSiswa({
 
             {adaLampiran ? (
               <ul className="divide-y divide-border">
-                {pertemuan.videoUrl ? (
-                  <li>
+                {pecahBerkas(pertemuan.videoUrl).map((url, i) => (
+                  <li key={url}>
                     <a
-                      href={pertemuan.videoUrl}
+                      href={url}
                       target="_blank"
                       rel="noreferrer noopener"
                       className="flex items-center gap-3 px-3 py-3 transition-colors hover:bg-muted/50"
@@ -213,10 +214,10 @@ export function LembarPertemuanSiswa({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium text-foreground">
-                          Video pembelajaran
+                          Video pembelajaran{pecahBerkas(pertemuan.videoUrl).length > 1 ? ` ${i + 1}` : ""}
                         </span>
                         <span className="block truncate text-xs text-muted-foreground">
-                          {pertemuan.videoUrl}
+                          {url}
                         </span>
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground">
@@ -224,7 +225,7 @@ export function LembarPertemuanSiswa({
                       </span>
                     </a>
                   </li>
-                ) : null}
+                ))}
 
                 {pertemuan.lampiranNama ? (
                   <li>

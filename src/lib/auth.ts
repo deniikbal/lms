@@ -7,7 +7,9 @@ import { DEFAULT_ROLE } from "@/lib/roles";
 
 export const auth = betterAuth({
   appName: "LMS",
-  baseURL: process.env.BETTER_AUTH_URL,
+  // baseURL sengaja tidak di-set: Better Auth menyimpalkan origin dari header
+  // request. Menyetelnya ke localhost membuat deployment online menolak
+  // sign-out karena origin check/CSRF gagal (baseURL tak cocok dengan domain).
   secret: process.env.BETTER_AUTH_SECRET,
 
   // Better Auth uses the built-in Kysely adapter for a raw `pg` pool.

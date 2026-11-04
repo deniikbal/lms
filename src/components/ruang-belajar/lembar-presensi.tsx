@@ -11,6 +11,7 @@ import {
   hariDariTanggal,
   hariIni,
   keteranganJendela,
+  pecahBerkas,
   type PertemuanDetail,
   type RuangHeader,
   type SiswaPresensi,
@@ -98,13 +99,18 @@ export function LembarPresensi({
           <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {pertemuan.videoUrl ? (
               <a
-                href={pertemuan.videoUrl}
+                href={pecahBerkas(pertemuan.videoUrl)[0]}
                 target="_blank"
                 rel="noreferrer noopener"
+                title={pecahBerkas(pertemuan.videoUrl).length > 1
+                  ? `${pecahBerkas(pertemuan.videoUrl).length} video — buka daftar materi untuk semuanya`
+                  : undefined}
                 className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
               >
                 <VideoIcon className="size-3.5" />
-                Gabung video
+                {pecahBerkas(pertemuan.videoUrl).length > 1
+                  ? `Video ×${pecahBerkas(pertemuan.videoUrl).length}`
+                  : "Gabung video"}
               </a>
             ) : null}
 

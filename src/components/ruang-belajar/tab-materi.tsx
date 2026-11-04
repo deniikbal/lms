@@ -23,6 +23,7 @@ import {
   hariDariTanggal,
   hariIni,
   namaHari,
+  pecahBerkas,
   type Badge,
   type PeranRuang,
   type PertemuanRow,
@@ -342,20 +343,24 @@ function KartuPertemuan({
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {!pertemuan.terbit ? <Chip tone="kuning">Draf</Chip> : null}
 
-            {pertemuan.videoUrl ? (
+            {pecahBerkas(pertemuan.videoUrl).map((url, i) => (
               <a
-                href={pertemuan.videoUrl}
+                key={url}
+                href={url}
                 target="_blank"
                 rel="noreferrer noopener"
                 className={cn(
                   "relative inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
                   TONE.biru,
                 )}
+                title={url}
               >
                 <VideoIcon className="size-3" />
-                Video
+                {pecahBerkas(pertemuan.videoUrl).length > 1
+                  ? `Video ${i + 1}`
+                  : "Video"}
               </a>
-            ) : null}
+            ))}
 
             {pertemuan.lampiranNama ? (
               <a

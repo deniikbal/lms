@@ -335,6 +335,9 @@ export type TugasRow = {
   tenggat: string | null;
   terkumpul: number;
   dinilai: number;
+  /** Optional PDF the teacher attached (Drive). */
+  lampiranNama: string | null;
+  lampiranUrl: string | null;
   /** Set for a student: their own submission, if any. */
   pengumpulanSiswa: {
     dikumpulkan: boolean;
@@ -590,6 +593,9 @@ export type TugasDetail = {
   tenggat: string | null;
   /** Computed by the database, so no clock arithmetic on the client. */
   lewatTenggat: boolean;
+  /** Optional PDF the teacher attached for the task (Drive). */
+  lampiranNama: string | null;
+  lampiranUrl: string | null;
 };
 
 /**

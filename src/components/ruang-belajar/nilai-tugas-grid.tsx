@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState, useTransition } from "react";
+import { Fragment, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   CheckIcon,
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 
 import { simpanNilaiTugasAction } from "@/app/actions/ruang-belajar";
+import { HapusPengumpulan } from "@/components/ruang-belajar/hapus-pengumpulan";
 import { LihatBerkasNilai } from "@/components/ruang-belajar/lihat-berkas-nilai";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,9 @@ import {
 } from "@/lib/ruang-belajar-shared";
 
 type Peta = Record<string, number | null>;
+
+/** Filter baris berdasarkan chip ringkasan yang diklik; null = semua. */
+type Filter = "sudah" | "belum" | "dinilai" | "kurangNilai" | null;
 
 function petaAwal(baris: PengumpulanRow[]): Peta {
   const hasil: Peta = {};
@@ -56,6 +60,7 @@ export function NilaiTugasGrid({
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Filter>(null);
   const [pending, startTransition] = useTransition();
 
   const ringkas = useMemo(() => {
@@ -65,7 +70,7 @@ export function NilaiTugasGrid({
       if (item.dikumpulkan) sudah += 1;
       if (nilai[item.siswaId] !== null && nilai[item.siswaId] !== undefined) dinilai += 1;
     }
-    return { sudah, belum: pengumpulan.length - sudah, dinilai, total: pengumpulan.length };
+    return { sudah, belum: pengumpulan.length - sudah, dinilai, kurangNilai: sudah - dinilai, total: pengumpulan.length };
   }, [pengumpulan, nilai]);
 
   const berubah = useMemo(
@@ -76,12 +81,46 @@ export function NilaiTugasGrid({
     [pengumpulan, nilai, awal],
   );
 
+  /** Filter mengikuti status yang diketik, bukan data server yang basi. */
+  const tampil = useMemo(() => {
+    if (filter === null) return pengumpulan;
+    return pengumpulan.filter((item) => {
+      const n = nilai[item.siswaId] ?? null;
+      if (filter === "sudah") return item.dikumpulkan;
+      if (filter === "belum") return !item.dikumpulkan;
+      if (filter === "kurangNilai") return item.dikumpulkan && n === null;
+      return n !== null; // "dinilai"
+    });
+  }, [pengumpulan, nilai, filter]);
+
   function ubah(id: string, teks: string) {
     const angka = keNilai(teks);
     setNilai((lama) => ({ ...lama, [id]: Number.isNaN(angka) ? lama[id] ?? null : angka }));
     setError(null);
     setPesan(null);
   }
+
+  // router.refresh() mengirim data pengumpulan terbaru tanpa reload halaman.
+  // State lokal harus ikut: nilai yang masih sama dengan baseline (tidak
+  // sedang diedit) diperbarui ke data terbaru; edit yang belum disimpan
+  // tetap dipertahankan agar tidak tertimpa.
+  useEffect(() => {
+    const segar = petaAwal(pengumpulan);
+    setAwal(segar);
+    setNilai((lama) => {
+      const hasil: Peta = {};
+      for (const item of pengumpulan) {
+        hasil[item.siswaId] =
+          lama[item.siswaId] !== undefined && lama[item.siswaId] !== (awal[item.siswaId] ?? null)
+            ? lama[item.siswaId] // edit lokal yang belum disimpan
+            : segar[item.siswaId];
+      }
+      return hasil;
+    });
+    // `awal` disengaja tidak di dependency: nilai terakhirnya cukup untuk
+    // membedakan edit lokal dari data server.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pengumpulan]);
 
   function batal() {
     setNilai({ ...awal });
@@ -129,30 +168,62 @@ export function NilaiTugasGrid({
           aria-label="Ringkasan pengumpulan"
           className="flex flex-wrap items-center gap-1.5"
         >
-          <span
-            className={cn(
-              "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
-              TONE.hijau,
-            )}
-          >
-            Sudah {ringkas.sudah}
-          </span>
-          <span
-            className={cn(
-              "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
-              TONE.netral,
-            )}
-          >
-            Belum {ringkas.belum}
-          </span>
-          <span
-            className={cn(
-              "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
-              TONE.biru,
-            )}
-          >
-            Dinilai {ringkas.dinilai}
-          </span>
+        <button
+          type="button"
+          aria-pressed={filter === "sudah"}
+          title="Tampilkan hanya yang sudah mengumpulkan"
+          className={cn(
+            "cursor-pointer rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            filter === null && "opacity-60 hover:opacity-100",
+            filter === "sudah" && "ring-2 ring-offset-1 ring-offset-background",
+            TONE.hijau,
+          )}
+          onClick={() => setFilter(filter === "sudah" ? null : "sudah")}
+        >
+          Sudah {ringkas.sudah}
+        </button>
+        <button
+          type="button"
+          aria-pressed={filter === "belum"}
+          title="Tampilkan hanya yang belum mengumpulkan"
+          className={cn(
+            "cursor-pointer rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            filter === null && "opacity-60 hover:opacity-100",
+            filter === "belum" && "ring-2 ring-offset-1 ring-offset-background",
+            TONE.netral,
+          )}
+          onClick={() => setFilter(filter === "belum" ? null : "belum")}
+        >
+          Belum {ringkas.belum}
+        </button>
+        <button
+          type="button"
+          aria-pressed={filter === "dinilai"}
+          title="Tampilkan hanya yang sudah dinilai"
+          className={cn(
+            "cursor-pointer rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            filter === null && "opacity-60 hover:opacity-100",
+            filter === "dinilai" && "ring-2 ring-offset-1 ring-offset-background",
+            TONE.biru,
+          )}
+          onClick={() => setFilter(filter === "dinilai" ? null : "dinilai")}
+        >
+          Dinilai {ringkas.dinilai}
+        </button>
+        <button
+          type="button"
+          aria-pressed={filter === "kurangNilai"}
+          title="Sudah mengumpulkan tetapi belum dinilai"
+          className={cn(
+            "cursor-pointer rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+            filter === null && "opacity-60 hover:opacity-100",
+            filter === "kurangNilai" && "ring-2 ring-offset-1 ring-offset-background",
+            TONE.kuning,
+          )}
+          onClick={() => setFilter(filter === "kurangNilai" ? null : "kurangNilai")}
+        >
+          Perlu dinilai {ringkas.kurangNilai}
+        </button>
         </div>
       </div>
 
@@ -199,18 +270,24 @@ export function NilaiTugasGrid({
               >
                 Nilai
               </th>
+              <th
+                scope="col"
+                className="w-10 px-2 py-2"
+              >
+                <span className="sr-only">Aksi</span>
+              </th>
             </tr>
           </thead>
 
           <tbody>
             {pengumpulan.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={6} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   Kelas ini belum punya siswa aktif.
                 </td>
               </tr>
             ) : (
-              pengumpulan.map((item, indeks) => {
+              tampil.map((item, indeks) => {
                 // Follows what is typed, so the badge does not lag behind the
                 // server refresh after a save.
                 const status = statusPengumpulan({
@@ -290,14 +367,31 @@ export function NilaiTugasGrid({
                           placeholder="—"
                           value={nilai[item.siswaId] ?? ""}
                           onChange={(event) => ubah(item.siswaId, event.target.value)}
+                          onKeyDown={(event) => {
+                            // Enter di kolom nilai = simpan, seperti menekan tombolnya.
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              simpan();
+                            }
+                          }}
                           className="h-8 w-16 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none transition-colors tabular-nums placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground/50"
+                        />
+                      </td>
+                      <td className="px-1 py-2">
+                        <HapusPengumpulan
+                          ruangId={ruangId}
+                          tugasId={tugasId}
+                          siswaId={item.siswaId}
+                          nama={item.nama}
+                          adaJawaban={adaJawaban}
+                          boleh
                         />
                       </td>
                     </tr>
 
                     {buka ? (
                       <tr className="border-b border-border/50 bg-muted/20">
-                        <td colSpan={5} className="px-3 py-3">
+                        <td colSpan={6} className="px-3 py-3">
                           <p className="mb-1 text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">
                             Jawaban {item.nama}
                           </p>

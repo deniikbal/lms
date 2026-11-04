@@ -18,7 +18,12 @@ import { cn } from "@/lib/utils";
  */
 function toPreviewUrl(url: string): string {
   const cocok = url.match(/drive\.google\.com\/file\/d\/([\w-]+)/);
-  return cocok ? `https://drive.google.com/file/d/${cocok[1]}/preview` : url;
+  // `embedded=true` menyembunyikan bar atas Drive (yang berisi tombol
+  // pop-out "Lepas"). Tanpa itu, iframe menampilkan tombol bawaan Drive
+  // di pojok kanan atas modal.
+  return cocok
+    ? `https://drive.google.com/file/d/${cocok[1]}/preview?embedded=true`
+    : url;
 }
 
 /**

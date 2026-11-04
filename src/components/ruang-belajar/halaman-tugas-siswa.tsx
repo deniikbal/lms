@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon, InfoIcon } from "lucide-react";
 
 import { FormPengumpulan } from "@/components/ruang-belajar/form-pengumpulan";
+import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,27 @@ export function HalamanTugasSiswa({
           <p className="mt-1 text-sm whitespace-pre-line text-foreground">
             {tugas.deskripsi}
           </p>
+        </div>
+      ) : null}
+
+      {tugas.lampiranUrl ? (
+        <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-2.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-blue-600/25 bg-blue-500/[0.08] text-blue-600 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-400">
+            <FileTextIcon className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-foreground">
+              Lampiran tugas (PDF)
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {tugas.lampiranNama}
+            </span>
+          </span>
+          <PratinjauBerkas
+            url={tugas.lampiranUrl}
+            label="Buka"
+            className="shrink-0 text-xs"
+          />
         </div>
       ) : null}
 
