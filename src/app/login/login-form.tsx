@@ -2,7 +2,6 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -95,16 +94,6 @@ export function LoginForm() {
         <Button type="submit" size="lg" className="w-full" disabled={pending}>
           {pending ? "Memproses…" : "Masuk"}
         </Button>
-
-        <p className="text-center text-sm text-muted-foreground">
-          Belum punya akun?{" "}
-          <Link
-            href="/register"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Daftar sebagai siswa
-          </Link>
-        </p>
       </FieldGroup>
     </form>
   );
