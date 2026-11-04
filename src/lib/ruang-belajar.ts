@@ -250,12 +250,14 @@ export async function listTugas(
     dinilai: number;
     lampiran_nama: string | null;
     lampiran_url: string | null;
+    deskripsi: string | null;
     dikumpulkan_siswa: boolean;
     nilai_siswa: number | null;
     terlambat_siswa: boolean | null;
   }>(
     `select t.id,
             t.judul,
+            t.deskripsi,
             t.tipe,
             t.terbit,
             t.boleh_terlambat,
@@ -294,6 +296,7 @@ export async function listTugas(
     dinilai: row.dinilai,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
+    deskripsi: row.deskripsi,
     // A row may exist with a grade but no answer (paper work). Either is worth
     // showing the student, so the "Tanpa jawaban" state survives the round trip.
     pengumpulanSiswa:
@@ -998,6 +1001,7 @@ export async function ubahTugas({
   ruangId,
   tugasId,
   judul,
+  deskripsi,
   tenggat,
   tipe,
   bolehTerlambat,
@@ -1008,6 +1012,7 @@ export async function ubahTugas({
   ruangId: number;
   tugasId: number;
   judul: string;
+  deskripsi: string | null;
   tenggat: string | null;
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
@@ -1018,15 +1023,16 @@ export async function ubahTugas({
   const { rowCount } = await pool.query(
     `update tugas set
             judul = $3,
-            tenggat = case when $4::text is null then null
-                           else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
-            tipe = $5,
-            boleh_terlambat = $6,
-            terbit = $7,
-            lampiran_nama = $8,
-            lampiran_url = $9
+            deskripsi = $4,
+            tenggat = case when $5::text is null then null
+                           else ($5::text)::timestamp at time zone 'Asia/Jakarta' end,
+            tipe = $6,
+            boleh_terlambat = $7,
+            terbit = $8,
+            lampiran_nama = $9,
+            lampiran_url = $10
       where id = $1 and ruang_id = $2`,
-    [tugasId, ruangId, judul, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
+    [tugasId, ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
   );
   if (!rowCount) return { ok: false, error: "Tugas tidak ditemukan di ruang ini." };
   return { ok: true };
@@ -1192,6 +1198,7 @@ export async function simpanMateri({
 export async function tambahTugas({
   ruangId,
   judul,
+  deskripsi,
   tenggat,
   tipe,
   bolehTerlambat,
@@ -1201,6 +1208,7 @@ export async function tambahTugas({
 }: {
   ruangId: number;
   judul: string;
+  deskripsi: string | null;
   tenggat: string | null;
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
@@ -1209,13 +1217,13 @@ export async function tambahTugas({
   lampiranUrl: string | null;
 }): Promise<Hasil> {
   await pool.query(
-    `insert into tugas (ruang_id, judul, tenggat, tipe, boleh_terlambat, terbit,
+    `insert into tugas (ruang_id, judul, deskripsi, tenggat, tipe, boleh_terlambat, terbit,
                         lampiran_nama, lampiran_url)
-     values ($1, $2,
-             case when $3::text is null then null
-                  else ($3::text)::timestamp at time zone 'Asia/Jakarta' end,
-             $4, $5, $6, $7, $8)`,
-    [ruangId, judul, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
+     values ($1, $2, $3,
+             case when $4::text is null then null
+                  else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
+             $5, $6, $7, $8, $9)`,
+    [ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
   );
   return { ok: true };
 }

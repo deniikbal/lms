@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon, InfoIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, FileTextIcon, InfoIcon } from "lucide-react";
 
 import { FormPengumpulan } from "@/components/ruang-belajar/form-pengumpulan";
 import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
@@ -81,24 +81,36 @@ export function HalamanTugasSiswa({
       </header>
 
       {tugas.deskripsi ? (
-        <div className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2">
-          <p className="text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">
-            Instruksi
-          </p>
-          <p className="mt-1 text-sm whitespace-pre-line text-foreground">
+        <section
+          aria-label="Instruksi tugas"
+          className="relative overflow-hidden rounded-xl border-2 border-primary/30 bg-primary/[0.06] px-4 py-3.5"
+        >
+          {/* Garis aksen kiri — menarik pandangan tanpa warna yang mencolok. */}
+          <span
+            aria-hidden
+            className="absolute inset-y-0 left-0 w-1 bg-primary/60"
+          />
+          <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-primary uppercase">
+            <ClipboardListIcon className="size-4" aria-hidden />
+            Instruksi tugas
+          </h2>
+          <p className="mt-2 whitespace-pre-line text-[0.95rem] leading-relaxed font-medium text-foreground">
             {tugas.deskripsi}
           </p>
-        </div>
+        </section>
       ) : null}
 
       {tugas.lampiranUrl ? (
-        <div className="flex items-center gap-3 rounded-lg border border-border/70 bg-card px-3 py-2.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-blue-600/25 bg-blue-500/[0.08] text-blue-600 dark:border-blue-400/30 dark:bg-blue-400/10 dark:text-blue-400">
-            <FileTextIcon className="size-4" />
+        <div
+          aria-label="Lampiran tugas"
+          className="flex items-center gap-3 rounded-xl border-2 border-amber-500/40 bg-amber-500/[0.07] px-4 py-3"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-lg border border-amber-600/30 bg-amber-500/15 text-amber-600 dark:border-amber-400/40 dark:bg-amber-400/15 dark:text-amber-400">
+            <FileTextIcon className="size-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-medium text-foreground">
-              Lampiran tugas (PDF)
+            <span className="block text-sm font-semibold text-foreground">
+              Lampiran tugas (PDF) — wajib dibaca
             </span>
             <span className="block truncate text-xs text-muted-foreground">
               {tugas.lampiranNama}
@@ -106,8 +118,8 @@ export function HalamanTugasSiswa({
           </span>
           <PratinjauBerkas
             url={tugas.lampiranUrl}
-            label="Buka"
-            className="shrink-0 text-xs"
+            label="Buka lampiran"
+            className="shrink-0 rounded-lg border border-amber-600/40 bg-amber-500/15 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
           />
         </div>
       ) : null}

@@ -430,6 +430,7 @@ export async function simpanMateriAction(input: {
 export async function tambahTugasAction(input: {
   ruangId: number;
   judul: string;
+  deskripsi?: string | null;
   tenggat?: string | null;
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
@@ -445,6 +446,10 @@ export async function tambahTugasAction(input: {
 
   const judul = teks(input.judul, 120);
   if (!judul) return { error: "Judul tugas wajib diisi (maks. 120 karakter)." };
+  const deskripsi = teks(input.deskripsi, 4000);
+  if (input.deskripsi && String(input.deskripsi).trim().length > 4000) {
+    return { error: "Instruksi tugas maksimal 4000 karakter." };
+  }
 
   const tipe = input.tipe;
   if (!["file", "teks", "keduanya"].includes(tipe)) {
@@ -460,6 +465,7 @@ export async function tambahTugasAction(input: {
   const hasil = await tambahTugas({
     ruangId,
     judul,
+    deskripsi,
     tenggat,
     tipe,
     bolehTerlambat: Boolean(input.bolehTerlambat),
@@ -477,6 +483,7 @@ export async function ubahTugasAction(input: {
   ruangId: number;
   tugasId: number;
   judul: string;
+  deskripsi?: string | null;
   tenggat?: string | null;
   tipe: "file" | "teks" | "keduanya";
   bolehTerlambat: boolean;
@@ -494,6 +501,10 @@ export async function ubahTugasAction(input: {
 
   const judul = teks(input.judul, 120);
   if (!judul) return { error: "Judul tugas wajib diisi (maks. 120 karakter)." };
+  const deskripsi = teks(input.deskripsi, 4000);
+  if (input.deskripsi && String(input.deskripsi).trim().length > 4000) {
+    return { error: "Instruksi tugas maksimal 4000 karakter." };
+  }
 
   const tipe = input.tipe;
   if (!"file teks keduanya".split(" ").includes(tipe)) {
@@ -526,6 +537,7 @@ export async function ubahTugasAction(input: {
     ruangId,
     tugasId,
     judul,
+    deskripsi,
     tenggat,
     tipe,
     bolehTerlambat: Boolean(input.bolehTerlambat),

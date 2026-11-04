@@ -173,6 +173,7 @@ export function TabTugas({
                             terbit: item.terbit,
                             lampiranNama: item.lampiranNama,
                             lampiranUrl: item.lampiranUrl,
+                            deskripsi: item.deskripsi,
                           }}
                           pemicu={
                             <Button
@@ -289,6 +290,7 @@ export function TabTugas({
                         terbit: item.terbit,
                         lampiranNama: item.lampiranNama,
                         lampiranUrl: item.lampiranUrl,
+                        deskripsi: item.deskripsi,
                       }}
                       pemicu={
                         <Button

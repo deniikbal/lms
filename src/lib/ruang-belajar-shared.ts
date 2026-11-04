@@ -338,6 +338,8 @@ export type TugasRow = {
   /** Optional PDF the teacher attached (Drive). */
   lampiranNama: string | null;
   lampiranUrl: string | null;
+  /** Instruksi untuk siswa. */
+  deskripsi: string | null;
   /** Set for a student: their own submission, if any. */
   pengumpulanSiswa: {
     dikumpulkan: boolean;

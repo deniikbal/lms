@@ -54,6 +54,8 @@ export type PertemuanEdit = {
 export type TugasEdit = {
   id: number;
   judul: string;
+  /** Instruksi untuk siswa. */
+  deskripsi: string | null;
   /** `YYYY-MM-DD HH:MM` (Jakarta), or null when there is no deadline. */
   tenggat: string | null;
   tipe: "file" | "teks" | "keduanya";
@@ -127,6 +129,7 @@ export function BuatDialog({
   const [terbit, setTerbit] = useState(pertemuan?.terbit ?? true);
 
   const [tenggat, setTenggat] = useState(tugas?.tenggat ?? "");
+  const [deskripsiTugas, setDeskripsiTugas] = useState(tugas?.deskripsi ?? "");
   const [tipe, setTipe] = useState<"file" | "teks" | "keduanya">(
     tugas?.tipe ?? "file",
   );
@@ -154,6 +157,7 @@ export function BuatDialog({
     setHapusLampiran(false);
     setTerbit(pertemuan?.terbit ?? true);
     setTenggat(tugas?.tenggat ?? "");
+    setDeskripsiTugas(tugas?.deskripsi ?? "");
     setTipe(tugas?.tipe ?? "file");
     setBolehTerlambat(tugas?.bolehTerlambat ?? true);
     setMulai("");
@@ -200,6 +204,7 @@ export function BuatDialog({
                   ruangId,
                   tugasId: tugas.id,
                   judul,
+                  deskripsi: deskripsiTugas,
                   tenggat,
                   tipe,
                   bolehTerlambat,
@@ -210,6 +215,7 @@ export function BuatDialog({
               : await tambahTugasAction({
                   ruangId,
                   judul,
+                  deskripsi: deskripsiTugas,
                   tenggat,
                   tipe,
                   bolehTerlambat,
@@ -292,6 +298,24 @@ export function BuatDialog({
               autoComplete="off"
             />
           </div>
+
+          {jenis === "tugas" ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="tugas-deskripsi">
+                Instruksi{" "}
+                <span className="font-normal text-muted-foreground">(opsional)</span>
+              </Label>
+              <textarea
+                id="tugas-deskripsi"
+                value={deskripsiTugas}
+                rows={3}
+                maxLength={4000}
+                onChange={(event) => setDeskripsiTugas(event.target.value)}
+                placeholder="Apa yang harus dikerjakan siswa? Mis. langkah pengerjaan, format jawaban, hal yang perlu diperhatikan…"
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30"
+              />
+            </div>
+          ) : null}
 
           {jenis === "pertemuan" ? (
             <>
