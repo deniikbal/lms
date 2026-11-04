@@ -61,12 +61,15 @@ export function PratinjauBerkas({
         }
       />
 
-      {/* Edge-to-edge: the file IS the dialog. */}
+      {/*
+        Full-screen on mobile: the dialog fills the viewport, no border, no
+        chrome — just the document over the frosted page behind it.
+      */}
       <DialogContent
         showCloseButton={false}
-        className="max-h-[95vh] gap-0 overflow-hidden rounded-xl p-0 sm:max-w-4xl"
+        className="h-[100dvh] max-h-none w-screen max-w-none gap-0 rounded-none border-0 bg-transparent p-0 ring-0"
       >
-        <div className="relative h-[95vh] w-full bg-muted/20">
+        <div className="relative h-[100dvh] w-full">
           {gambar ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -83,15 +86,15 @@ export function PratinjauBerkas({
           )}
 
           {/*
-            The dialog's own close button is a ghost icon that disappears over a
-            bright photo; this one is an opaque chip, always visible.
+            The only control on screen: an opaque chip so it stays visible over
+            any photo or PDF. No external-link button — close is enough here.
           */}
           <DialogPrimitive.Close
             data-slot="pratinjau-close"
-            className="absolute top-2 right-2 inline-flex size-8 items-center justify-center rounded-full bg-popover/95 text-foreground shadow-md ring-1 ring-foreground/10 transition-colors hover:bg-popover"
+            className="absolute top-3 right-3 inline-flex size-9 items-center justify-center rounded-full bg-popover/95 text-foreground shadow-md ring-1 ring-foreground/10 transition-colors hover:bg-popover"
             aria-label="Tutup pratinjau"
           >
-            <XIcon className="size-4" />
+            <XIcon className="size-5" />
           </DialogPrimitive.Close>
 
           {berkas && berkas.total > 1 ? (
