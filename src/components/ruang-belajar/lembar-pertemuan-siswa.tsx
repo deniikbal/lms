@@ -15,6 +15,7 @@ import {
 import { PresensiSiswa, TombolSelesai } from "@/components/ruang-belajar/aksi-pertemuan";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { BacaMateri } from "@/components/ruang-belajar/tulis-materi";
+import { PemutarYouTube, youtubeId } from "@/components/ruang-belajar/pemutar-youtube";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
@@ -196,6 +197,20 @@ export function LembarPertemuanSiswa({
                 )}
               >
                 <BacaMateri materi={pertemuan.materi!} />
+              </div>
+            ) : null}
+
+            {pecahBerkas(pertemuan.videoUrl).some((u) => youtubeId(u)) ? (
+              <div className="space-y-3 border-b border-border px-3 py-3">
+                {pecahBerkas(pertemuan.videoUrl)
+                  .filter((u) => youtubeId(u))
+                  .map((url) => (
+                    <PemutarYouTube
+                      key={url}
+                      url={url}
+                      judul={`Video ${pertemuan.judul}`}
+                    />
+                  ))}
               </div>
             ) : null}
 
