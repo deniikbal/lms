@@ -7,6 +7,7 @@ import { CameraIcon, CheckIcon, ImageIcon, Loader2Icon, PlusIcon, SendIcon, XIco
 import { kirimTugasAction } from "@/app/actions/ruang-belajar";
 import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
 import { TONE } from "@/components/ruang-belajar/tone";
+import { kompresSemua } from "@/lib/kompres-gambar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -40,9 +41,27 @@ export function FormPengumpulan({
   // phone it opens the camera directly instead of the file picker.
   const [berkas, setBerkas] = useState<{ id: number; file: File }[]>([]);
   const [berikutnya, setBerikutnya] = useState(0);
+  const [memampatkan, setMemampatkan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  async function tambahBerkas(daftar: FileList | null) {
+    if (!daftar || daftar.length === 0) return;
+    setError(null);
+    setPesan(null);
+    // Compress before listing, so sizes shown are the ones that will upload.
+    setMemampatkan(true);
+    try {
+      const ringan = await kompresSemua(Array.from(daftar));
+      setBerkas((lama) =>
+        [...lama, ...ringan.map((file) => ({ id: berikutnya, file }))].slice(0, 10),
+      );
+      setBerikutnya((n) => n + ringan.length);
+    } finally {
+      setMemampatkan(false);
+    }
+  }
 
   const izin = bolehKirim(tugas, pengumpulan);
   const status = statusPengumpulan(pengumpulan);
@@ -140,17 +159,10 @@ export function FormPengumpulan({
                 type="file"
                 accept={TERIMA}
                 multiple
-                disabled={terkunci || pending}
+                disabled={terkunci || pending || memampatkan}
                 onChange={(event) => {
-                  const baru = Array.from(event.target.files ?? []).map((file) => ({
-                    id: berikutnya,
-                    file,
-                  }));
-                  setBerikutnya((n) => n + baru.length);
-                  setBerkas((lama) => [...lama, ...baru].slice(0, 10));
+                  void tambahBerkas(event.target.files);
                   event.target.value = "";
-                  setError(null);
-                  setPesan(null);
                 }}
                 className="hidden"
               />
@@ -173,22 +185,23 @@ export function FormPengumpulan({
                 accept="image/jpeg,image/png,image/webp,image/heic"
                 capture="environment"
                 multiple
-                disabled={terkunci || pending}
+                disabled={terkunci || pending || memampatkan}
                 onChange={(event) => {
-                  const baru = Array.from(event.target.files ?? []).map((file) => ({
-                    id: berikutnya,
-                    file,
-                  }));
-                  setBerikutnya((n) => n + baru.length);
-                  setBerkas((lama) => [...lama, ...baru].slice(0, 10));
+                  void tambahBerkas(event.target.files);
                   event.target.value = "";
-                  setError(null);
-                  setPesan(null);
                 }}
                 className="hidden"
               />
             </label>
           </div>
+
+          {memampatkan ? (
+            <p className="flex items-center gap-1.5 text-[0.7rem] text-muted-foreground" role="status">
+              <Loader2Icon className="size-3 animate-spin" />
+              Memampatkan foto agar unggahan ringan…
+            </p>
+          ) : null}
+
           <p className="text-[0.7rem] text-muted-foreground">
             Foto (JPG/PNG/WebP) atau PDF, maks. {BATAS_MB} MB per berkas, maks. 10
             berkas. Tersimpan di Google Drive; mengirim ulang menggantikan semua
