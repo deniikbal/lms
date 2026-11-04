@@ -4,11 +4,7 @@ import { notFound } from "next/navigation";
 
 import { LoadingPanel } from "@/components/loading-panel";
 import { LembarPresensi } from "@/components/ruang-belajar/lembar-presensi";
-import {
-  aksesRuang,
-  getPertemuanDetail,
-  listPresensiSiswa,
-} from "@/lib/ruang-belajar";
+import { aksesRuang, getPertemuanDetail, listPresensiSiswa } from "@/lib/ruang-belajar";
 import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = {

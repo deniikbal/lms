@@ -14,7 +14,14 @@ import { createSign } from "node:crypto";
  * the returned link is ever stored — no bytes land in Postgres.
  */
 
-const SCOPE = "https://www.googleapis.com/auth/drive";
+// One consent covers both features: submissions go to Drive, meeting links come
+// from Calendar and are then opened up through the Meet API. Space-separated,
+// which is how the JWT assertion wants them.
+const SCOPE = [
+  "https://www.googleapis.com/auth/drive",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/meetings.space.settings",
+].join(" ");
 
 /** The redirect the consent step must be registered with, exactly. */
 export const REDIRECT_URI = "http://localhost:53682/oauth2callback";
@@ -30,11 +37,11 @@ export const MIME_DIIZINKAN = [
   "application/pdf",
 ];
 
-type Kredensial =
+export type Kredensial =
   | { jenis: "refresh"; clientId: string; clientSecret: string; refreshToken: string; folderId: string }
   | { jenis: "jwt"; email: string; kunci: string; folderId: string };
 
-function kredensial(): Kredensial | null {
+export function kredensial(): Kredensial | null {
   const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID?.trim();
   if (!folderId) return null;
 
@@ -83,7 +90,7 @@ export function buatJwt(email: string, kunci: string, sekarang = Date.now()): st
   return `${tanpaTandaTangan}.${tandaTangan}`;
 }
 
-async function token(k: Kredensial): Promise<string> {
+export async function token(k: Kredensial): Promise<string> {
   const body =
     k.jenis === "refresh"
       ? new URLSearchParams({

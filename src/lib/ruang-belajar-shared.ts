@@ -306,6 +306,8 @@ export type PertemuanRow = {
   tanggal: string;
   terbit: boolean;
   videoUrl: string | null;
+  /** Calendar event behind the Meet link, when the LMS created it. */
+  googleEventId: string | null;
   lampiranNama: string | null;
   lampiranUrl: string | null;
   /** Already formatted HH:MM for display. */
@@ -406,6 +408,8 @@ export type PertemuanDetail = {
    */
   materi: string | null;
   videoUrl: string | null;
+  /** Calendar event behind the Meet link, when the LMS created it. */
+  googleEventId: string | null;
   lampiranNama: string | null;
   lampiranUrl: string | null;
   /** HH:MM in Asia/Jakarta, already formatted by the database. */
@@ -587,6 +591,19 @@ export type TugasDetail = {
   /** Computed by the database, so no clock arithmetic on the client. */
   lewatTenggat: boolean;
 };
+
+/**
+ * A submission's Drive links, newest first is not guaranteed — the order is the
+ * upload order. `file_url` stores one link per line: Drive links never contain
+ * a newline, so splitting on "\n" is lossless and needs no schema change.
+ */
+export function pecahBerkas(url: string | null | undefined): string[] {
+  if (!url) return [];
+  return url
+    .split("\n")
+    .map((baris) => baris.trim())
+    .filter(Boolean);
+}
 
 /** One row of the teacher's submission sheet: a student plus their answer. */
 export type PengumpulanRow = {

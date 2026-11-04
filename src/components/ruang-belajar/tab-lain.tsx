@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, PencilIcon } from "lucide-react";
 
+import { BuatDialog, type TugasEdit } from "@/components/ruang-belajar/buat-dialog";
+import { DiskusiForm } from "@/components/ruang-belajar/diskusi-form";
+import { HapusTugas } from "@/components/ruang-belajar/hapus-tugas";
 import { Kosong, Panel } from "@/components/ruang-belajar/panel";
 import { inisial, TONE } from "@/components/ruang-belajar/tone";
-import { DiskusiForm } from "@/components/ruang-belajar/diskusi-form";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -34,6 +37,11 @@ import {
 const HEAD =
   "px-3 text-[0.7rem] font-medium tracking-wider uppercase text-muted-foreground";
 
+/** Extract the numeric room id from the base URL, e.g. `/guru/ruang/73` → 73. */
+function ruangIdOf(base: string): number {
+  return Number(base.split("/").pop());
+}
+
 // --------------------------------------------------------------------- tugas
 
 export function TabTugas({
@@ -62,7 +70,11 @@ export function TabTugas({
         siswa ? `${tugas.length} tugas` : `${tugas.length} tugas · ${terbit} terbit`
       }
     >
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+      {/*
+        Two shapes for one list: a real table on ≥sm, stacked cards on a phone —
+        a 4-column table never fits 360px without a sideways scroll.
+      */}
+      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card sm:block">
         <Table>
           <TableHeader>
             <TableRow className="border-border/60 hover:bg-transparent">
@@ -130,14 +142,55 @@ export function TabTugas({
                   </TableCell>
                   {siswa ? null : (
                     <TableCell className="px-3 py-3">
-                      <span
-                        className={cn(
-                          "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
-                          item.terbit ? TONE.hijau : TONE.kuning,
-                        )}
-                      >
-                        {item.terbit ? "Terbit" : "Draf"}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={cn(
+                            "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                            item.terbit ? TONE.hijau : TONE.kuning,
+                          )}
+                        >
+                          {item.terbit ? "Terbit" : "Draf"}
+                        </span>
+
+                        {/*
+                          Row-level controls, like the meeting cards: edit reuses
+                          the create dialog, delete disappears once a submission
+                          or grade exists (the SQL re-checks regardless).
+                        */}
+                        <BuatDialog
+                          ruangId={ruangIdOf(base)}
+                          jenis="tugas"
+                          tugas={{
+                            id: item.id,
+                            judul: item.judul,
+                            // The list query formats the deadline as
+                            // `YYYY-MM-DD HH24:MI`; the input needs a literal T.
+                            tenggat: item.tenggat
+                              ? item.tenggat.replace(" ", "T")
+                              : null,
+                            tipe: item.tipe,
+                            bolehTerlambat: item.bolehTerlambat,
+                            terbit: item.terbit,
+                          }}
+                          pemicu={
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Edit tugas ${item.judul}`}
+                            >
+                              <PencilIcon />
+                            </Button>
+                          }
+                        />
+                        <HapusTugas
+                          ruangId={ruangIdOf(base)}
+                          tugasId={item.id}
+                          boleh={true}
+                          terkumpul={item.terkumpul}
+                          dinilai={item.dinilai}
+                        />
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
@@ -146,11 +199,121 @@ export function TabTugas({
           </TableBody>
         </Table>
       </div>
+
+      {/* Phone: the same rows as stacked cards — no sideways scrolling. */}
+      <div className="space-y-2 sm:hidden">
+        {tugas.map((item) => {
+          const milik = item.pengumpulanSiswa;
+          const status = milik
+            ? statusPengumpulan(milik)
+            : statusPengumpulan({ dikumpulkan: false, terlambat: false, nilai: null });
+          return (
+            <div
+              key={item.id}
+              className="space-y-2 rounded-xl border border-border/70 bg-card p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <Link
+                  href={`${base}/tugas/${item.id}`}
+                  className="min-w-0 flex-1 rounded-sm text-sm font-medium text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  <span className="line-clamp-2">{item.judul}</span>
+                </Link>
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                    TONE[status.tone],
+                  )}
+                >
+                  {status.label}
+                </span>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {labelTipe(item.tipe)}
+                {item.bolehTerlambat ? " · boleh terlambat" : ""}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/50 pt-2">
+                <p className="text-xs text-muted-foreground tabular-nums">
+                  {formatTanggalJam(item.tenggat) ?? "Tanpa tenggat"}
+                </p>
+                {siswa ? (
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    {milik?.dikumpulkan ? (
+                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.hijau)}>
+                        Terkumpul
+                      </span>
+                    ) : null}
+                    {milik?.terlambat ? (
+                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.merah)}>
+                        Terlambat
+                      </span>
+                    ) : null}
+                    {milik?.nilai !== null && milik?.nilai !== undefined ? (
+                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums", TONE.biru)}>
+                        Nilai {milik.nilai}
+                      </span>
+                    ) : null}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {item.terkumpul}/{jumlahSiswa} terkumpul
+                    {item.dinilai > 0 ? ` · ${item.dinilai} dinilai` : ""}
+                  </span>
+                )}
+
+                {siswa ? null : (
+                  <div className="flex items-center gap-1">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                        item.terbit ? TONE.hijau : TONE.kuning,
+                      )}
+                    >
+                      {item.terbit ? "Terbit" : "Draf"}
+                    </span>
+                    <BuatDialog
+                      ruangId={ruangIdOf(base)}
+                      jenis="tugas"
+                      tugas={{
+                        id: item.id,
+                        judul: item.judul,
+                        // The list query formats the deadline as
+                        // `YYYY-MM-DD HH24:MI`; the input needs a literal T.
+                        tenggat: item.tenggat ? item.tenggat.replace(" ", "T") : null,
+                        tipe: item.tipe,
+                        bolehTerlambat: item.bolehTerlambat,
+                        terbit: item.terbit,
+                      }}
+                      pemicu={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Edit tugas ${item.judul}`}
+                        >
+                          <PencilIcon />
+                        </Button>
+                      }
+                    />
+                    <HapusTugas
+                      ruangId={ruangIdOf(base)}
+                      tugasId={item.id}
+                      boleh={true}
+                      terkumpul={item.terkumpul}
+                      dinilai={item.dinilai}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </Panel>
   );
 }
-
-// ------------------------------------------------------------------ presensi
 
 export function TabPresensi({
   matriks,

@@ -172,6 +172,7 @@ export async function listPertemuan(
     tanggal: string;
     terbit: boolean;
     video_url: string | null;
+    google_event_id: string | null;
     lampiran_nama: string | null;
     lampiran_url: string | null;
     presensi_buka: string | null;
@@ -189,6 +190,7 @@ export async function listPertemuan(
             to_char(p.tanggal, 'YYYY-MM-DD') as tanggal,
             p.terbit,
             p.video_url,
+            p.google_event_id,
             p.lampiran_nama,
             p.lampiran_url,
             to_char(p.presensi_buka at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_buka,
@@ -217,6 +219,7 @@ export async function listPertemuan(
     tanggal: row.tanggal,
     terbit: row.terbit,
     videoUrl: row.video_url,
+    googleEventId: row.google_event_id,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
     presensiBuka: row.presensi_buka,
@@ -592,6 +595,7 @@ export async function getPertemuanDetail(
     terbit: boolean;
     materi: string | null;
     video_url: string | null;
+    google_event_id: string | null;
     lampiran_nama: string | null;
     lampiran_url: string | null;
     presensi_buka: string | null;
@@ -606,6 +610,7 @@ export async function getPertemuanDetail(
             p.terbit,
             p.materi,
             p.video_url,
+            p.google_event_id,
             p.lampiran_nama,
             p.lampiran_url,
             to_char(p.presensi_buka at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_buka,
@@ -628,6 +633,7 @@ export async function getPertemuanDetail(
     terbit: row.terbit,
     materi: row.materi,
     videoUrl: row.video_url,
+    googleEventId: row.google_event_id,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
     presensiBuka: row.presensi_buka,
@@ -889,6 +895,9 @@ export async function tambahPertemuan({
   terbit,
   materi,
   videoUrl,
+  googleEventId,
+  lampiranNama,
+  lampiranUrl,
   presensiBuka,
   presensiTutup,
 }: {
@@ -898,6 +907,9 @@ export async function tambahPertemuan({
   terbit: boolean;
   materi: string | null;
   videoUrl: string | null;
+  googleEventId?: string | null;
+  lampiranNama?: string | null;
+  lampiranUrl?: string | null;
   presensiBuka: string | null;
   presensiTutup: string | null;
 }): Promise<Hasil> {
@@ -909,8 +921,8 @@ export async function tambahPertemuan({
   await pool.query(
     `insert into pertemuan
        (ruang_id, urutan, judul, tanggal, terbit, materi, video_url,
-        presensi_buka, presensi_tutup)
-     values ($1, $2, $3, $4::date, $5, $6, $7,
+        google_event_id, lampiran_nama, lampiran_url, presensi_buka, presensi_tutup)
+     values ($1, $2, $3, $4::date, $5, $6, $7, $10, $11, $12,
              case when $8::text is null then null
                   else ($4::date + $8::time) at time zone 'Asia/Jakarta' end,
              case when $9::text is null then null
@@ -925,9 +937,171 @@ export async function tambahPertemuan({
       videoUrl,
       presensiBuka,
       presensiTutup,
+      googleEventId ?? null,
+      lampiranNama ?? null,
+      lampiranUrl ?? null,
     ],
   );
 
+  return { ok: true };
+}
+
+/**
+ * Edits the header fields of one meeting (title, date, video, attendance window).
+ *
+ * Scoped by `ruang_id`, same as `simpanMateri`: a borrowed meeting id updates nothing.
+ */
+/**
+ * Deletes a meeting — but only while no attendance has been recorded.
+ *
+ * The count lives in the `where`, so the race between "teacher opens the sheet"
+ * and "first student is recorded" deletes nothing and reports a conflict instead
+ * of silently dropping a row that already has history.
+ */
+export async function hapusPertemuan({
+  ruangId,
+  pertemuanId,
+}: {
+  ruangId: number;
+  pertemuanId: number;
+}): Promise<Hasil> {
+  const { rowCount } = await pool.query(
+    `delete from pertemuan
+      where id = $1 and ruang_id = $2
+        and not exists (select 1 from presensi where pertemuan_id = $1)`,
+    [pertemuanId, ruangId],
+  );
+
+  if (!rowCount) {
+    return { ok: false, error: "Pertemuan tidak bisa dihapus karena presensi sudah diisi." };
+  }
+  return { ok: true };
+}
+
+/**
+ * Edit a task in place. The deadline is sent as `YYYY-MM-DD HH:MM` (Jakarta),
+ * matching how it is read back; null clears it.
+ */
+export async function ubahTugas({
+  ruangId,
+  tugasId,
+  judul,
+  tenggat,
+  tipe,
+  bolehTerlambat,
+  terbit,
+}: {
+  ruangId: number;
+  tugasId: number;
+  judul: string;
+  tenggat: string | null;
+  tipe: "file" | "teks" | "keduanya";
+  bolehTerlambat: boolean;
+  terbit: boolean;
+}): Promise<Hasil> {
+  const { rowCount } = await pool.query(
+    `update tugas set
+            judul = $3,
+            tenggat = case when $4::text is null then null
+                           else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
+            tipe = $5,
+            boleh_terlambat = $6,
+            terbit = $7
+      where id = $1 and ruang_id = $2`,
+    [tugasId, ruangId, judul, tenggat, tipe, bolehTerlambat, terbit],
+  );
+  if (!rowCount) return { ok: false, error: "Tugas tidak ditemukan di ruang ini." };
+  return { ok: true };
+}
+
+/**
+ * Delete a task. Rejected while any submission exists — submissions carry
+ * grades and files in Drive, and silently orphaning them is worse than making
+ * the teacher delete the submissions first (a future, deliberate step).
+ */
+export async function hapusTugas({
+  ruangId,
+  tugasId,
+}: {
+  ruangId: number;
+  tugasId: number;
+}): Promise<Hasil> {
+  const { rowCount } = await pool.query(
+    `delete from tugas
+      where id = $1 and ruang_id = $2
+        and not exists (select 1 from pengumpulan p
+                         where p.tugas_id = $1
+                           and (p.teks is not null or p.file_url is not null
+                                or p.nilai is not null))`,
+    [tugasId, ruangId],
+  );
+  if (!rowCount) {
+    return {
+      ok: false,
+      error: "Tugas tidak bisa dihapus karena sudah ada pengumpulan atau nilai.",
+    };
+  }
+  return { ok: true };
+}
+
+export async function ubahPertemuan({
+  ruangId,
+  pertemuanId,
+  judul,
+  tanggal,
+  terbit,
+  videoUrl,
+  googleEventId,
+  lampiranNama,
+  lampiranUrl,
+  presensiBuka,
+  presensiTutup,
+}: {
+  ruangId: number;
+  pertemuanId: number;
+  judul: string;
+  tanggal: string;
+  terbit: boolean;
+  videoUrl: string | null;
+  googleEventId?: string | null;
+  /** Null = leave the stored attachment alone; a pair replaces or clears it. */
+  lampiranNama?: string | null;
+  lampiranUrl?: string | null;
+  presensiBuka: string | null;
+  presensiTutup: string | null;
+}): Promise<Hasil> {
+  const { rowCount } = await pool.query(
+    `update pertemuan
+        set judul = $3,
+            tanggal = $4::date,
+            terbit = $5,
+            video_url = $6,
+            google_event_id = coalesce($9::text, google_event_id),
+            lampiran_nama = coalesce($10::text, lampiran_nama),
+            lampiran_url = case
+                             when $10::text is null then lampiran_url
+                             else $11::text end,
+            presensi_buka = case when $7::text is null then null
+                                 else ($4::date + $7::time) at time zone 'Asia/Jakarta' end,
+            presensi_tutup = case when $8::text is null then null
+                                  else ($4::date + $8::time) at time zone 'Asia/Jakarta' end
+      where id = $1 and ruang_id = $2`,
+    [
+      pertemuanId,
+      ruangId,
+      judul,
+      tanggal,
+      terbit,
+      videoUrl,
+      presensiBuka,
+      presensiTutup,
+      googleEventId ?? null,
+      lampiranNama ?? null,
+      lampiranUrl ?? null,
+    ],
+  );
+
+  if (!rowCount) return { ok: false, error: "Pertemuan tidak ditemukan di ruang ini." };
   return { ok: true };
 }
 
@@ -1171,6 +1345,7 @@ export async function getPertemuanSiswa({
     terbit: boolean;
     materi: string | null;
     video_url: string | null;
+    google_event_id: string | null;
     lampiran_nama: string | null;
     lampiran_url: string | null;
     presensi_buka: string | null;
@@ -1184,7 +1359,8 @@ export async function getPertemuanSiswa({
   }>(
     `select p.id, p.ruang_id, p.urutan, p.judul,
             to_char(p.tanggal, 'YYYY-MM-DD') as tanggal,
-            p.terbit, p.materi, p.video_url, p.lampiran_nama, p.lampiran_url,
+            p.terbit, p.materi, p.video_url, p.google_event_id,
+            p.lampiran_nama, p.lampiran_url,
             to_char(p.presensi_buka at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_buka,
             to_char(p.presensi_tutup at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_tutup,
             coalesce(now() between p.presensi_buka and p.presensi_tutup, false) as presensi_dibuka,
@@ -1241,6 +1417,7 @@ export async function getPertemuanSiswa({
     terbit: row.terbit,
     materi: row.materi,
     videoUrl: row.video_url,
+    googleEventId: row.google_event_id,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
     presensiBuka: row.presensi_buka,

@@ -82,13 +82,15 @@ export function LembarTugas({
             </p>
           </div>
 
-          <Link
-            href={`${base}?tab=tugas`}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
-          >
-            <ArrowLeftIcon className="size-3.5" />
-            Kembali ke tugas
-          </Link>
+          <div className="flex shrink-0 items-center gap-1">
+            <Link
+              href={`${base}?tab=tugas`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+            >
+              <ArrowLeftIcon className="size-3.5" />
+              Kembali ke tugas
+            </Link>
+          </div>
         </div>
       </header>
 

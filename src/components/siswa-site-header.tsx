@@ -5,10 +5,9 @@ import { usePathname } from "next/navigation";
 import { findSiswaNavItem } from "@/components/admin/nav-config";
 import { MenuPengguna } from "@/components/menu-pengguna";
 import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
 import { ROLE_LABEL, type Role } from "@/lib/roles";
 
-/** Sticky top bar: sidebar toggle, current section, and the signed-in user. */
+/** Slim top bar: current section and the signed-in user. */
 export function SiswaSiteHeader({
   user,
 }: {
@@ -25,8 +24,6 @@ export function SiswaSiteHeader({
 
   return (
     <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-card px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="h-4" />
       <span className="text-sm font-medium">{current?.title ?? "Dashboard"}</span>
 
       <div className="ml-auto flex items-center">

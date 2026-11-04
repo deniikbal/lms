@@ -82,9 +82,9 @@ export async function RuangShell({
       <div className="overflow-hidden rounded-xl border border-indigo-500/25 bg-card shadow-sm dark:border-indigo-400/25">
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 space-y-1.5">
+            <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
                   {ruang.mapelNama}
                 </h1>
                 <Badge variant="secondary">{ruang.mapelKode}</Badge>
@@ -137,7 +137,7 @@ export async function RuangShell({
           </dl>
         </div>
 
-        <div className="border-t border-indigo-500/20 bg-indigo-500/[0.04] px-2 dark:border-indigo-400/20 dark:bg-indigo-400/[0.06]">
+        <div className="border-t border-indigo-500/20 bg-indigo-500/[0.04] px-1 dark:border-indigo-400/20 dark:bg-indigo-400/[0.06]">
           <RuangTabs base={base} aktif={aktif} peran={peran} batas={false} />
         </div>
       </div>

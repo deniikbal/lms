@@ -6,14 +6,19 @@ import {
   ClipboardCheckIcon,
   ListVideoIcon,
   PaperclipIcon,
+  PencilIcon,
   StickyNoteIcon,
   VideoIcon,
 } from "lucide-react";
 
+import { HapusPertemuan } from "@/components/ruang-belajar/hapus-pertemuan";
+import { BuatDialog } from "@/components/ruang-belajar/buat-dialog";
 import { TONE } from "@/components/ruang-belajar/tone";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   badgePresensi,
+  bolehUbah,
   formatTanggal,
   hariDariTanggal,
   hariIni,
@@ -146,6 +151,7 @@ export function TabMateri({
                 <li key={item.id}>
                   <KartuPertemuan
                     pertemuan={item}
+                    ruangId={ruang.id}
                     peran={peran}
                     jumlahSiswa={ruang.jumlahSiswa}
                     base={base}
@@ -211,11 +217,13 @@ export function TabMateri({
 
 function KartuPertemuan({
   pertemuan,
+  ruangId,
   peran,
   jumlahSiswa,
   base,
 }: {
   pertemuan: PertemuanRow;
+  ruangId: number;
   peran: PeranRuang;
   jumlahSiswa: number;
   base: string;
@@ -281,10 +289,43 @@ function KartuPertemuan({
               </Link>
             </h3>
 
-            <ChevronRightIcon
-              aria-hidden
-              className="mt-0.5 size-4 shrink-0 text-muted-foreground/60"
-            />
+            {bolehUbah(peran) ? (
+              <span className="relative flex shrink-0 items-center gap-0.5">
+                <BuatDialog
+                  ruangId={ruangId}
+                  jenis="pertemuan"
+                  pertemuan={pertemuan}
+                  pemicu={
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="size-7 text-muted-foreground hover:text-foreground"
+                      aria-label={`Ubah pertemuan ${pertemuan.urutan}`}
+                    >
+                      <PencilIcon className="size-3.5" />
+                    </Button>
+                  }
+                />
+
+                {/*
+                  Delete lives on the card, not inside the sheet: after a delete the
+                  sheet's own page no longer exists, and a redirect-from-itself lands
+                  on a broken render.
+                */}
+                <HapusPertemuan
+                  ruangId={ruangId}
+                  pertemuanId={pertemuan.id}
+                  boleh
+                  tercatat={pertemuan.tercatat}
+                />
+              </span>
+            ) : (
+              <ChevronRightIcon
+                aria-hidden
+                className="mt-0.5 size-4 shrink-0 text-muted-foreground/60"
+              />
+            )}
           </div>
 
           <p

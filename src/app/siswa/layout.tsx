@@ -1,18 +1,17 @@
 import { Suspense, type ReactNode } from "react";
 
 import { LoadingPanel } from "@/components/loading-panel";
-import { SiswaSidebar } from "@/components/siswa-sidebar";
+import { SiswaNavBawah } from "@/components/siswa-nav-bawah";
 import { SiswaSiteHeader } from "@/components/siswa-site-header";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { requireRole } from "@/lib/session";
 
 /**
- * Student shell: sidebar + sticky navbar around every /siswa route.
+ * Student shell: slim top bar + bottom navigation around every /siswa route.
  *
- * The student area used to render its own header and page margins in each page,
- * which is why the room pages had a different frame from the dashboard. One
- * layout now owns the chrome, so a new student page gets the sidebar for free.
+ * Only the student area uses a bottom bar — teacher and admin keep their
+ * sidebars. The header stays for the section title and account menu; the old
+ * sidebar and its toggle are gone.
  */
 export default function SiswaLayout({ children }: { children: ReactNode }) {
   return (
@@ -27,13 +26,14 @@ async function SiswaShell({ children }: { children: ReactNode }) {
 
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        <SiswaSidebar />
-        <SidebarInset>
-          <SiswaSiteHeader user={user} />
-          <div className="flex flex-1 flex-col gap-6 p-4 sm:p-6">{children}</div>
-        </SidebarInset>
-      </SidebarProvider>
+      <div className="flex min-h-svh flex-col">
+        <SiswaSiteHeader user={user} />
+        {/* pb leaves room for the fixed bottom bar + safe area on phones. */}
+        <div className="flex flex-1 flex-col gap-6 p-4 pb-24 sm:p-6 sm:pb-24">
+          {children}
+        </div>
+        <SiswaNavBawah user={user} />
+      </div>
     </TooltipProvider>
   );
 }

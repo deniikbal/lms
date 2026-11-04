@@ -2,16 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CheckIcon,
-  FileTextIcon,
-  ImageIcon,
-  Loader2Icon,
-  SendIcon,
-  XIcon,
-} from "lucide-react";
+import { CameraIcon, CheckIcon, ImageIcon, Loader2Icon, PlusIcon, SendIcon, XIcon } from "lucide-react";
 
 import { kirimTugasAction } from "@/app/actions/ruang-belajar";
+import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -19,6 +13,7 @@ import { cn } from "@/lib/utils";
 import {
   bolehKirim,
   formatTanggalJam,
+  pecahBerkas,
   statusPengumpulan,
   type PengumpulanSiswa,
   type TugasDetail,
@@ -40,9 +35,11 @@ export function FormPengumpulan({
 }) {
   const router = useRouter();
   const [teks, setTeks] = useState(pengumpulan.teks ?? "");
-  // A `File` is passed straight into the server action, so nothing is uploaded
-  // to a separate route and there is no temp file to clean up.
-  const [berkas, setBerkas] = useState<File | null>(null);
+  // `File`s pass straight into the server action: no separate upload route and
+  // no temp files. The camera button is the same input with `capture`, so on a
+  // phone it opens the camera directly instead of the file picker.
+  const [berkas, setBerkas] = useState<{ id: number; file: File }[]>([]);
+  const [berikutnya, setBerikutnya] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -59,13 +56,13 @@ export function FormPengumpulan({
         ruangId,
         tugasId: tugas.id,
         teks,
-        file: berkas,
+        files: berkas.map(({ file }) => file),
       });
       if (hasil.error) {
         setError(hasil.error);
         return;
       }
-      setBerkas(null);
+      setBerkas([]);
       setPesan(
         pengumpulan.dikumpulkan
           ? "Jawaban diperbarui."
@@ -129,54 +126,118 @@ export function FormPengumpulan({
         </div>
 
         <div className="mt-1 space-y-1.5">
-          <Label htmlFor="berkas-tugas">Foto atau berkas</Label>
-          <input
-            id="berkas-tugas"
-            type="file"
-            accept={TERIMA}
-            disabled={terkunci || pending}
-            onChange={(event) => {
-              setBerkas(event.target.files?.[0] ?? null);
-              setError(null);
-              setPesan(null);
-            }}
-            className="block w-full cursor-pointer rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-muted file:px-2.5 file:py-1.5 file:text-xs file:font-medium file:text-foreground disabled:cursor-not-allowed disabled:bg-muted/40"
-          />
+          <Label>Foto atau berkas</Label>
+          <div className="flex flex-wrap items-center gap-2">
+            <label
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50",
+                (terkunci || pending) && "pointer-events-none opacity-50",
+              )}
+            >
+              <PlusIcon className="size-3.5" />
+              Pilih berkas
+              <input
+                type="file"
+                accept={TERIMA}
+                multiple
+                disabled={terkunci || pending}
+                onChange={(event) => {
+                  const baru = Array.from(event.target.files ?? []).map((file) => ({
+                    id: berikutnya,
+                    file,
+                  }));
+                  setBerikutnya((n) => n + baru.length);
+                  setBerkas((lama) => [...lama, ...baru].slice(0, 10));
+                  event.target.value = "";
+                  setError(null);
+                  setPesan(null);
+                }}
+                className="hidden"
+              />
+            </label>
+
+            {/*
+              The capture attribute is a hint desktop browsers ignore and phones
+              honour: it opens the camera straight away, no file picker hop.
+            */}
+            <label
+              className={cn(
+                "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-muted",
+                (terkunci || pending) && "pointer-events-none opacity-50",
+              )}
+            >
+              <CameraIcon className="size-3.5" />
+              Ambil foto
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                capture="environment"
+                multiple
+                disabled={terkunci || pending}
+                onChange={(event) => {
+                  const baru = Array.from(event.target.files ?? []).map((file) => ({
+                    id: berikutnya,
+                    file,
+                  }));
+                  setBerikutnya((n) => n + baru.length);
+                  setBerkas((lama) => [...lama, ...baru].slice(0, 10));
+                  event.target.value = "";
+                  setError(null);
+                  setPesan(null);
+                }}
+                className="hidden"
+              />
+            </label>
+          </div>
           <p className="text-[0.7rem] text-muted-foreground">
-            Foto (JPG/PNG/WebP) atau PDF, maks. {BATAS_MB} MB. Berkas disimpan di
-            Google Drive; mengirim berkas baru menghapus berkas lama.
+            Foto (JPG/PNG/WebP) atau PDF, maks. {BATAS_MB} MB per berkas, maks. 10
+            berkas. Tersimpan di Google Drive; mengirim ulang menggantikan semua
+            berkas sebelumnya.
           </p>
 
-          {berkas ? (
-            <p className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1.5 text-xs text-foreground">
-              <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">{berkas.name}</span>
-              <span className="shrink-0 text-muted-foreground tabular-nums">
-                {(berkas.size / 1024 / 1024).toFixed(1)} MB
-              </span>
-              {!pending ? (
-                <button
-                  type="button"
-                  onClick={() => setBerkas(null)}
-                  aria-label="Batalkan berkas"
-                  className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+          {berkas.length > 0 ? (
+            <ul className="space-y-1">
+              {berkas.map(({ id, file }) => (
+                <li
+                  key={id}
+                  className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-muted/40 px-2.5 py-1.5 text-xs text-foreground"
                 >
-                  <XIcon className="size-3.5" />
-                </button>
-              ) : null}
-            </p>
+                  <ImageIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{file.name}</span>
+                  <span className="shrink-0 text-muted-foreground tabular-nums">
+                    {(file.size / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                  {!pending ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBerkas((lama) => lama.filter((satu) => satu.id !== id))
+                      }
+                      aria-label={`Batalkan ${file.name}`}
+                      className="ml-auto shrink-0 rounded p-0.5 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                    >
+                      <XIcon className="size-3.5" />
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           ) : null}
 
           {pengumpulan.fileUrl ? (
-            <a
-              href={pengumpulan.fileUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-4 hover:text-primary"
-            >
-              <FileTextIcon className="size-3.5" />
-              Berkas yang sudah Anda kirim
-            </a>
+            <div className="space-y-1">
+              <p className="text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">
+                Berkas yang sudah Anda kirim
+              </p>
+              {pecahBerkas(pengumpulan.fileUrl).map((tautan, indeks, semua) => (
+                <PratinjauBerkas
+                  key={tautan}
+                  url={tautan}
+                  label={`Berkas ${indeks + 1}`}
+                  berkas={{ kini: indeks + 1, total: semua.length }}
+                />
+              ))}
+            </div>
           ) : null}
         </div>
 
@@ -209,7 +270,7 @@ export function FormPengumpulan({
               type="button"
               size="sm"
               onClick={kirim}
-              disabled={pending || (teks.trim().length === 0 && !berkas)}
+              disabled={pending || (teks.trim().length === 0 && berkas.length === 0)}
             >
               {pending ? <Loader2Icon className="animate-spin" /> : <SendIcon />}
               {pengumpulan.dikumpulkan ? "Perbarui jawaban" : "Kirim tugas"}

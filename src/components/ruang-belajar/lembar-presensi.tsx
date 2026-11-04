@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon, VideoIcon } from "lucide-react";
 
 import { PresensiGrid } from "@/components/ruang-belajar/presensi-grid";
 import { TONE } from "@/components/ruang-belajar/tone";
@@ -95,13 +95,27 @@ export function LembarPresensi({
             </p>
           </div>
 
-          <Link
-            href={`${base}?tab=materi`}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
-          >
-            <ArrowLeftIcon className="size-3.5" />
-            Kembali ke materi
-          </Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+            {pertemuan.videoUrl ? (
+              <a
+                href={pertemuan.videoUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+              >
+                <VideoIcon className="size-3.5" />
+                Gabung video
+              </a>
+            ) : null}
+
+            <Link
+              href={`${base}?tab=materi`}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground transition-colors hover:bg-muted"
+            >
+              <ArrowLeftIcon className="size-3.5" />
+              Kembali ke materi
+            </Link>
+          </div>
         </div>
       </header>
 

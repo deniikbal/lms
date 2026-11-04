@@ -57,7 +57,10 @@ export function RuangTabs({
     <nav
       aria-label="Bagian ruang belajar"
       className={cn(
-        "flex gap-1 overflow-x-auto",
+        "relative flex gap-0.5 overflow-x-auto sm:gap-1",
+        // Hide the scrollbar but keep scrolling; the faded edges below hint
+        // that the strip continues sideways on a narrow phone.
+        "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         batas && "-mb-px border-b border-border/70",
       )}
     >
@@ -70,7 +73,7 @@ export function RuangTabs({
             href={tab.key === "materi" ? base : `${base}?tab=${tab.key}`}
             aria-current={current ? "page" : undefined}
             className={cn(
-              "group relative flex shrink-0 items-center gap-1.5 px-3 py-2 text-sm transition-colors",
+              "group relative flex shrink-0 flex-col items-center gap-0.5 px-2.5 py-2 text-[0.7rem] leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm",
               "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors",
               current
                 ? "font-medium text-indigo-700 after:bg-indigo-600 dark:text-indigo-300 dark:after:bg-indigo-400"
@@ -80,7 +83,7 @@ export function RuangTabs({
             <Ikon
               aria-hidden
               className={cn(
-                "size-4 shrink-0 transition-colors",
+                "size-4 shrink-0 transition-colors sm:size-4",
                 current
                   ? "text-indigo-600 dark:text-indigo-400"
                   : "text-muted-foreground/70 group-hover:text-foreground",

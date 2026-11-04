@@ -20,7 +20,11 @@ try {
   // No .env — the check below still says what is missing.
 }
 
-const SCOPE = "https://www.googleapis.com/auth/drive";
+const SCOPE = [
+  "https://www.googleapis.com/auth/drive",
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/meetings.space.settings",
+].join(" ");
 
 const clientId = process.env.GOOGLE_DRIVE_CLIENT_ID?.trim();
 const clientSecret = process.env.GOOGLE_DRIVE_CLIENT_SECRET?.trim();

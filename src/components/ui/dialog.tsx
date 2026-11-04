@@ -31,8 +31,11 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
-        className
+        // Frosted glass, not a dimmed sheet: always-on blur with only a whisper
+        // of tint. No supports- guard — every browser this app targets applies
+        // backdrop-filter fine, and the guard is what left a dark veil behind.
+        "fixed inset-0 isolate z-50 bg-transparent backdrop-blur-lg duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        className,
       )}
       {...props}
     />

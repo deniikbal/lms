@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ export function LoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [lihatSandi, setLihatSandi] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,14 +65,25 @@ export function LoginForm() {
 
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="••••••••"
-            required
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              name="password"
+              type={lihatSandi ? "text" : "password"}
+              autoComplete="current-password"
+              placeholder="••••••••"
+              required
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setLihatSandi((l) => !l)}
+              aria-label={lihatSandi ? "Sembunyikan password" : "Tampilkan password"}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:text-foreground"
+            >
+              {lihatSandi ? <EyeOffIcon className="size-4" /> : <EyeIcon className="size-4" />}
+            </button>
+          </div>
         </Field>
 
         {error ? (

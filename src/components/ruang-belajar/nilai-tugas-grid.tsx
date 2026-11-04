@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import {
   CheckIcon,
   ChevronDownIcon,
-  FileTextIcon,
   Loader2Icon,
   UsersIcon,
 } from "lucide-react";
 
 import { simpanNilaiTugasAction } from "@/app/actions/ruang-belajar";
+import { LihatBerkasNilai } from "@/components/ruang-belajar/lihat-berkas-nilai";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -249,6 +249,19 @@ export function NilaiTugasGrid({
                           ) : (
                             <span className="pl-[1.25rem]">{item.nama}</span>
                           )}
+
+                          {/*
+                            The viewer sits inline: one click opens the PDF, no expand
+                            first. The expand row keeps the written answer for those
+                            who want it, but is no longer on the file's path.
+                          */}
+                          {item.fileUrl ? (
+                            <LihatBerkasNilai
+                              ruangId={ruangId}
+                              tugasId={tugasId}
+                              pengumpulan={item}
+                            />
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-2 py-2">
@@ -291,17 +304,6 @@ export function NilaiTugasGrid({
                           <p className="text-sm whitespace-pre-line text-foreground">
                             {item.teks?.trim() || "—"}
                           </p>
-                          {item.fileUrl ? (
-                            <a
-                              href={item.fileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="mt-1 inline-flex items-center gap-1.5 text-xs text-foreground underline underline-offset-4 hover:text-primary"
-                            >
-                              <FileTextIcon className="size-3.5" />
-                              Buka berkas
-                            </a>
-                          ) : null}
                         </td>
                       </tr>
                     ) : null}
