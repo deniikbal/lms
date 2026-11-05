@@ -65,7 +65,10 @@ export function FormPengumpulan({
 
   const izin = bolehKirim(tugas, pengumpulan);
   const status = statusPengumpulan(pengumpulan);
-  const terkunci = !izin.ok;
+  // A group task with no group has nowhere to file the answer — the server
+  // refuses it, so the box stays locked instead of failing on submit.
+  const tanpaKelompok = tugas.tipeKerja === "kelompok" && !pengumpulan.kelompok;
+  const terkunci = !izin.ok || tanpaKelompok;
 
   function kirim() {
     setError(null);
@@ -256,7 +259,11 @@ export function FormPengumpulan({
 
         {terkunci ? (
           <p className="rounded-lg border border-border/70 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            {izin.alasan}
+            {tanpaKelompok
+              ? "Anda belum terdaftar di kelompok untuk tugas ini. Hubungi guru pengampu."
+              : izin.ok
+                ? ""
+                : izin.alasan}
           </p>
         ) : null}
 

@@ -9,9 +9,11 @@ import {
   nilaiPercobaan,
   pilihanTersimpan,
   type AnggotaRow,
+  type BarisPengumpulanKelompok,
   type DiskusiRow,
   type JadwalSlot,
   type JenisSoal,
+  type KelompokRow,
   type KuisDetail,
   type KuisRow,
   type NilaiRow,
@@ -243,6 +245,8 @@ export async function listTugas(
     id: number;
     judul: string;
     tipe: "file" | "teks" | "keduanya";
+    tipe_kerja: "individu" | "kelompok";
+    nilai_sama: boolean;
     terbit: boolean;
     boleh_terlambat: boolean;
     tenggat: string | null;
@@ -259,25 +263,62 @@ export async function listTugas(
             t.judul,
             t.deskripsi,
             t.tipe,
+            t.tipe_kerja,
+            t.nilai_sama,
             t.terbit,
             t.boleh_terlambat,
             to_char(t.tenggat at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as tenggat,
             t.lampiran_nama,
             t.lampiran_url,
-            (select count(*)::int from pengumpulan p
+            (select count(distinct coalesce('k' || p.kelompok_id, p.siswa_id))::int
+               from pengumpulan p
               where p.tugas_id = t.id
                 and (p.teks is not null or p.file_url is not null)) as terkumpul,
-            (select count(*)::int from pengumpulan p
-              where p.tugas_id = t.id and p.nilai is not null) as dinilai,
+            (select count(distinct coalesce('k' || p.kelompok_id, p.siswa_id))::int
+               from pengumpulan p
+              where p.tugas_id = t.id and p.nilai is not null
+                and (p.teks is not null or p.file_url is not null)) as dinilai,
             exists(select 1 from pengumpulan p
-                    where p.tugas_id = t.id and p.siswa_id = $2
-                      and (p.teks is not null or p.file_url is not null))
+                    where p.tugas_id = t.id
+                      and (p.teks is not null or p.file_url is not null)
+                      and (
+                        (t.tipe_kerja = 'kelompok' and p.kelompok_id = (
+                          select k.id from kelompok_tugas k
+                            join kelompok_anggota a on a.kelompok_id = k.id
+                           where k.tugas_id = t.id and a.siswa_id = $2))
+                        or (t.tipe_kerja <> 'kelompok' and p.siswa_id = $2)
+                      ))
               as dikumpulkan_siswa,
-            (select p.nilai from pengumpulan p
-              where p.tugas_id = t.id and p.siswa_id = $2) as nilai_siswa,
+            -- A group task's grade is the group's: the shared grade on the
+            -- group row (nilai_sama) or the student's own member grade.
+            case
+              when t.tipe_kerja = 'kelompok' and t.nilai_sama then (
+                select p.nilai from pengumpulan p
+                 where p.tugas_id = t.id
+                   and p.kelompok_id = (
+                     select k.id from kelompok_tugas k
+                       join kelompok_anggota a on a.kelompok_id = k.id
+                      where k.tugas_id = t.id and a.siswa_id = $2)
+                 limit 1
+              )
+              else (
+                select p.nilai from pengumpulan p
+                 where p.tugas_id = t.id and p.siswa_id = $2
+                 order by p.kelompok_id nulls last, p.id limit 1
+              )
+            end as nilai_siswa,
             (select coalesce(p.dikumpulkan_at > t.tenggat, false)
                from pengumpulan p
-              where p.tugas_id = t.id and p.siswa_id = $2) as terlambat_siswa
+              where p.tugas_id = t.id
+                and (p.teks is not null or p.file_url is not null)
+                and (
+                  (t.tipe_kerja = 'kelompok' and p.kelompok_id = (
+                    select k.id from kelompok_tugas k
+                      join kelompok_anggota a on a.kelompok_id = k.id
+                     where k.tugas_id = t.id and a.siswa_id = $2))
+                  or (t.tipe_kerja <> 'kelompok' and p.siswa_id = $2)
+                )
+              limit 1) as terlambat_siswa
        from tugas t
       where t.ruang_id = $1
         and ($3::boolean or t.terbit)
@@ -289,6 +330,8 @@ export async function listTugas(
     id: row.id,
     judul: row.judul,
     tipe: row.tipe,
+    tipeKerja: row.tipe_kerja,
+    nilaiSama: row.nilai_sama,
     terbit: row.terbit,
     bolehTerlambat: row.boleh_terlambat,
     tenggat: row.tenggat,
@@ -321,6 +364,8 @@ export async function getTugasDetail(
     judul: string;
     deskripsi: string | null;
     tipe: "file" | "teks" | "keduanya";
+    tipe_kerja: "individu" | "kelompok";
+    nilai_sama: boolean;
     terbit: boolean;
     boleh_terlambat: boolean;
     tenggat: string | null;
@@ -333,6 +378,8 @@ export async function getTugasDetail(
             t.judul,
             t.deskripsi,
             t.tipe,
+            t.tipe_kerja,
+            t.nilai_sama,
             t.terbit,
             t.boleh_terlambat,
             to_char(t.tenggat at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as tenggat,
@@ -353,6 +400,8 @@ export async function getTugasDetail(
     judul: row.judul,
     deskripsi: row.deskripsi,
     tipe: row.tipe,
+    tipeKerja: row.tipe_kerja,
+    nilaiSama: row.nilai_sama,
     terbit: row.terbit,
     bolehTerlambat: row.boleh_terlambat,
     tenggat: row.tenggat,
@@ -415,6 +464,9 @@ export async function getPengumpulanSiswa(
   tugasId: number,
   siswaId: string,
 ): Promise<PengumpulanSiswa> {
+  // A group task has one answer per group, so the student's standing is the
+  // group's: their own row is only consulted for an individual task. The group
+  // grade is the shared one (nilai_sama) or the student's own member grade.
   const { rows } = await pool.query<{
     dikumpulkan: boolean;
     dikumpulkan_at: string | null;
@@ -422,17 +474,48 @@ export async function getPengumpulanSiswa(
     file_url: string | null;
     nilai: number | null;
     terlambat: boolean;
+    kelompok_id: number | null;
+    kelompok_nama: string | null;
+    anggota: { siswaId: string; nama: string }[] | null;
   }>(
-    `select (p.id is not null and (p.teks is not null or p.file_url is not null))
+    `with saya as (
+       select k.id, k.nama
+         from kelompok_tugas k
+         join kelompok_anggota a on a.kelompok_id = k.id
+        where k.tugas_id = $1 and a.siswa_id = $2
+     )
+     select (p.id is not null and (p.teks is not null or p.file_url is not null))
               as dikumpulkan,
             to_char(p.dikumpulkan_at at time zone 'Asia/Jakarta',
                     'YYYY-MM-DD HH24:MI') as dikumpulkan_at,
             p.teks,
             p.file_url,
-            p.nilai,
-            coalesce(p.dikumpulkan_at > t.tenggat, false) as terlambat
+            case
+              when t.tipe_kerja = 'kelompok' and t.nilai_sama then p.nilai
+              when t.tipe_kerja = 'kelompok' then (
+                select s.nilai from pengumpulan s
+                 where s.tugas_id = t.id and s.siswa_id = $2
+                   and s.kelompok_id is null
+              )
+              else p.nilai
+            end as nilai,
+            coalesce(p.dikumpulkan_at > t.tenggat, false) as terlambat,
+            (select id from saya) as kelompok_id,
+            (select nama from saya) as kelompok_nama,
+            (
+              select json_agg(json_build_object('siswaId', a.siswa_id, 'nama', u.name)
+                              order by u.name)
+                from kelompok_anggota a
+                join "user" u on u.id = a.siswa_id
+               where a.kelompok_id = (select id from saya)
+            ) as anggota
        from tugas t
-       left join pengumpulan p on p.tugas_id = t.id and p.siswa_id = $2
+       left join pengumpulan p
+              on p.tugas_id = t.id
+             and (
+               (t.tipe_kerja = 'kelompok' and p.kelompok_id = (select id from saya))
+               or (t.tipe_kerja <> 'kelompok' and p.siswa_id = $2)
+             )
       where t.id = $1`,
     [tugasId, siswaId],
   );
@@ -446,6 +529,7 @@ export async function getPengumpulanSiswa(
       fileUrl: null,
       nilai: null,
       terlambat: false,
+      kelompok: null,
     };
   }
 
@@ -456,6 +540,13 @@ export async function getPengumpulanSiswa(
     fileUrl: row.file_url,
     nilai: row.nilai,
     terlambat: row.terlambat,
+    kelompok: row.kelompok_id
+      ? {
+          id: row.kelompok_id,
+          nama: row.kelompok_nama ?? "",
+          anggota: row.anggota ?? [],
+        }
+      : null,
   };
 }
 
@@ -702,10 +793,28 @@ export async function getNilai(
         where role = 'siswa' and aktif and kelas_id = $2
      ),
      nilai_tugas as (
-       select p.siswa_id, avg(p.nilai)::numeric(5,1) as nilai
-         from pengumpulan p join tugas t on t.id = p.tugas_id
-        where t.ruang_id = $1 and p.nilai is not null
-        group by p.siswa_id
+       select siswa_id, avg(nilai)::numeric(5,1) as nilai
+         from (
+           -- Grades on each student's own row: individual tasks, and on a
+           -- per-member group task the content row carries the uploader's
+           -- personal grade while the other members sit in grade-only rows.
+           select p.siswa_id, p.nilai
+             from pengumpulan p join tugas t on t.id = p.tugas_id
+            where t.ruang_id = $1 and p.nilai is not null
+           union all
+           -- Shared group grade (nilai_sama): the content row's grade is the
+           -- group's, so every member of the group reports it.
+           select a.siswa_id, p.nilai
+             from pengumpulan p
+             join tugas t on t.id = p.tugas_id
+             join kelompok_tugas kt on kt.id = p.kelompok_id
+             join kelompok_anggota a on a.kelompok_id = kt.id
+            where t.ruang_id = $1
+              and t.nilai_sama
+              and p.kelompok_id is not null
+              and p.nilai is not null
+         ) gabungan
+        group by siswa_id
      ),
      nilai_kuis as (
        -- Only published quizzes count. A published quiz whose window has closed
@@ -1008,6 +1117,8 @@ export async function ubahTugas({
   terbit,
   lampiranNama,
   lampiranUrl,
+  tipeKerja,
+  nilaiSama,
 }: {
   ruangId: number;
   tugasId: number;
@@ -1019,7 +1130,26 @@ export async function ubahTugas({
   terbit: boolean;
   lampiranNama: string | null;
   lampiranUrl: string | null;
+  tipeKerja?: "individu" | "kelompok";
+  nilaiSama?: boolean;
 }): Promise<Hasil> {
+  // A task that already has individual submissions cannot become a group task:
+  // those answers belong to one person each, and re-filing them under a group
+  // would invent group work that never happened.
+  if (tipeKerja === "kelompok") {
+    const ada = await pool.query(
+      `select 1 from pengumpulan where tugas_id = $1 and kelompok_id is null limit 1`,
+      [tugasId],
+    );
+    if (ada.rowCount) {
+      return {
+        ok: false,
+        error:
+          "Tugas sudah punya pengumpulan individu dan tidak bisa diubah jadi tugas kelompok.",
+      };
+    }
+  }
+
   const { rowCount } = await pool.query(
     `update tugas set
             judul = $3,
@@ -1030,9 +1160,11 @@ export async function ubahTugas({
             boleh_terlambat = $7,
             terbit = $8,
             lampiran_nama = $9,
-            lampiran_url = $10
+            lampiran_url = $10,
+            tipe_kerja = coalesce($11, t.tipe_kerja),
+            nilai_sama = coalesce($12, t.nilai_sama)
       where id = $1 and ruang_id = $2`,
-    [tugasId, ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
+    [tugasId, ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl, tipeKerja ?? null, nilaiSama ?? null],
   );
   if (!rowCount) return { ok: false, error: "Tugas tidak ditemukan di ruang ini." };
   return { ok: true };
@@ -1077,26 +1209,33 @@ export async function hapusPengumpulan({
   ruangId,
   tugasId,
   siswaId,
+  kelompokId,
 }: {
   ruangId: number;
   tugasId: number;
   siswaId: string;
+  /** Set for a group task: the group's content row, not the student's own. */
+  kelompokId?: number | null;
 }): Promise<{ ok: boolean; fileUrls: string[] }> {
   // Collect Drive links first — the row is the only place they live.
   const { rows } = await pool.query<{ file_url: string | null }>(
     `select p.file_url
        from pengumpulan p
        join tugas t on t.id = p.tugas_id
-      where p.tugas_id = $1 and p.siswa_id = $2 and t.ruang_id = $3`,
-    [tugasId, siswaId, ruangId],
+      where p.tugas_id = $1
+        and p.siswa_id = $2
+        and t.ruang_id = $3
+        and ($4::int is null or p.kelompok_id = $4)`,
+    [tugasId, siswaId, ruangId, kelompokId ?? null],
   );
 
   const { rowCount } = await pool.query(
     `delete from pengumpulan p
        using tugas t
       where p.tugas_id = t.id and t.ruang_id = $3
-        and p.tugas_id = $1 and p.siswa_id = $2`,
-    [tugasId, siswaId, ruangId],
+        and p.tugas_id = $1 and p.siswa_id = $2
+        and ($4::int is null or p.kelompok_id = $4)`,
+    [tugasId, siswaId, ruangId, kelompokId ?? null],
   );
 
   if (!rowCount) return { ok: false, fileUrls: [] };
@@ -1205,6 +1344,8 @@ export async function tambahTugas({
   terbit,
   lampiranNama,
   lampiranUrl,
+  tipeKerja = "individu",
+  nilaiSama = true,
 }: {
   ruangId: number;
   judul: string;
@@ -1215,15 +1356,17 @@ export async function tambahTugas({
   terbit: boolean;
   lampiranNama: string | null;
   lampiranUrl: string | null;
+  tipeKerja?: "individu" | "kelompok";
+  nilaiSama?: boolean;
 }): Promise<Hasil> {
   await pool.query(
     `insert into tugas (ruang_id, judul, deskripsi, tenggat, tipe, boleh_terlambat, terbit,
-                        lampiran_nama, lampiran_url)
+                        lampiran_nama, lampiran_url, tipe_kerja, nilai_sama)
      values ($1, $2, $3,
              case when $4::text is null then null
                   else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
-             $5, $6, $7, $8, $9)`,
-    [ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl],
+             $5, $6, $7, $8, $9, $10, $11)`,
+    [ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl, tipeKerja, nilaiSama],
   );
   return { ok: true };
 }
@@ -1674,12 +1817,22 @@ export async function simpanPengumpulan({
     lewat: boolean;
     nilai: number | null;
     kelas: number | null;
+    tipe_kerja: "individu" | "kelompok";
+    kelompok_id: number | null;
   }>(
     `select t.terbit,
             t.boleh_terlambat,
             coalesce(t.tenggat is not null and now() > t.tenggat, false) as lewat,
+            t.tipe_kerja,
+            -- The student's group on this task, if any. A group task without
+            -- a group assignment cannot be submitted — there is nowhere for
+            -- the answer to land.
+            (select k.id from kelompok_tugas k
+              join kelompok_anggota a on a.kelompok_id = k.id
+             where k.tugas_id = t.id and a.siswa_id = $3) as kelompok_id,
             (select p.nilai from pengumpulan p
-              where p.tugas_id = t.id and p.siswa_id = $3) as nilai,
+              where p.tugas_id = t.id and p.siswa_id = $3
+              order by p.kelompok_id nulls last, p.id limit 1) as nilai,
             (select u.kelas_id from "user" u
               where u.id = $3 and u.role = 'siswa' and u.aktif) as kelas
        from tugas t
@@ -1693,6 +1846,18 @@ export async function simpanPengumpulan({
     return { ok: false, error: "Anda bukan siswa kelas ini." };
   }
 
+  if (row.tipe_kerja === "kelompok") {
+    if (!row.kelompok_id) {
+      return {
+        ok: false,
+        error: "Anda belum terdaftar di kelompok manapun untuk tugas ini.",
+      };
+    }
+  } else if (row.kelompok_id !== null) {
+    // Impossible through the UI; refuse anyway rather than misfile the answer.
+    return { ok: false, error: "Tugas ini bukan tugas kelompok." };
+  }
+
   const cek = bolehKirim(
     {
       terbit: row.terbit,
@@ -1702,6 +1867,28 @@ export async function simpanPengumpulan({
     { nilai: row.nilai },
   );
   if (!cek.ok) return { ok: false, error: cek.alasan };
+
+  // A group task lands one content row per group — whoever sends first creates
+  // it, later senders update the same row, so the last upload wins for the
+  // whole group. The unique key still guards individual tasks.
+  if (row.kelompok_id !== null) {
+    const { rowCount } = await pool.query(
+      `update pengumpulan
+          set teks = coalesce($3, teks),
+              file_url = coalesce($4, file_url),
+              dikumpulkan_at = now()
+        where tugas_id = $1 and kelompok_id = $2`,
+      [tugasId, row.kelompok_id, teks, fileUrl],
+    );
+    if (!rowCount) {
+      await pool.query(
+        `insert into pengumpulan (tugas_id, siswa_id, teks, file_url, kelompok_id)
+         values ($1, $2, $3, $4, $5)`,
+        [tugasId, siswaId, teks, fileUrl, row.kelompok_id],
+      );
+    }
+    return { ok: true };
+  }
 
   await pool.query(
     `insert into pengumpulan (tugas_id, siswa_id, teks, file_url)
@@ -1746,27 +1933,60 @@ export async function simpanNilaiTugas({
   tugasId,
   kelasId,
   entri,
+  nilaiKelompok,
 }: {
   ruangId: number;
   tugasId: number;
   kelasId: number;
   entri: { siswaId: string; nilai: number | null }[];
+  /**
+   * Group-task extras: the shared grade per group (nilai_sama mode) is written
+   * on the group's content row; per-member grades are grade-only rows keyed to
+   * the student, which the recap already averages without knowing about groups.
+   */
+  nilaiKelompok?: { kelompokId: number; nilai: number | null }[];
 }): Promise<Hasil> {
-  const { rowCount } = await pool.query(
-    `select 1 from tugas where id = $1 and ruang_id = $2`,
+  const cek = await pool.query<{
+    tipe_kerja: "individu" | "kelompok";
+    nilai_sama: boolean;
+  }>(
+    `select t.tipe_kerja, t.nilai_sama
+       from tugas t join ruang r on r.id = t.ruang_id
+      where t.id = $1 and t.ruang_id = $2`,
     [tugasId, ruangId],
   );
-  if (rowCount === 0) return { ok: false, error: "Tugas tidak ditemukan." };
-  if (entri.length === 0) return { ok: true };
-
-  const isi = entri.filter(
-    (item): item is { siswaId: string; nilai: number } => item.nilai !== null,
-  );
-  const kosong = entri.filter((item) => item.nilai === null).map((item) => item.siswaId);
+  const tugas = cek.rows[0];
+  if (!tugas) return { ok: false, error: "Tugas tidak ditemukan." };
+  if (entri.length === 0 && (!nilaiKelompok || nilaiKelompok.length === 0)) {
+    return { ok: true };
+  }
 
   const client = await pool.connect();
   try {
     await client.query("begin");
+
+    if (
+      tugas.tipe_kerja === "kelompok" &&
+      tugas.nilai_sama &&
+      nilaiKelompok &&
+      nilaiKelompok.length > 0
+    ) {
+      // One grade on the group's content row — every member reports it.
+      for (const g of nilaiKelompok) {
+        await client.query(
+          `update pengumpulan set nilai = $2
+            where tugas_id = $1 and kelompok_id = $3`,
+          [tugasId, g.nilai, g.kelompokId],
+        );
+      }
+    }
+
+    // Individual grades (individual tasks, and per-member grading rows are
+    // already keyed by student — the sheet may send both shapes at once).
+    const kosong = entri.filter((item) => item.nilai === null).map((item) => item.siswaId);
+    const isiSiswa = entri.filter(
+      (item): item is { siswaId: string; nilai: number } => item.nilai !== null,
+    );
 
     if (kosong.length > 0) {
       await client.query(
@@ -1776,7 +1996,7 @@ export async function simpanNilaiTugas({
       );
     }
 
-    if (isi.length > 0) {
+    if (isiSiswa.length > 0) {
       // The join on the class means a forged student id writes nothing.
       await client.query(
         `insert into pengumpulan (tugas_id, siswa_id, nilai)
@@ -1786,7 +2006,7 @@ export async function simpanNilaiTugas({
           where u.role = 'siswa' and u.aktif and u.kelas_id = $4
          on conflict (tugas_id, siswa_id)
          do update set nilai = excluded.nilai`,
-        [tugasId, isi.map((i) => i.siswaId), isi.map((i) => i.nilai), kelasId],
+        [tugasId, isiSiswa.map((i) => i.siswaId), isiSiswa.map((i) => i.nilai), kelasId],
       );
     }
 
@@ -2624,4 +2844,285 @@ export async function hapusKuis(ruangId: number, kuisId: number): Promise<Hasil>
   );
   if (rowCount === 0) return { ok: false, error: "Kuis tidak ditemukan." };
   return { ok: true };
+}
+
+// ------------------------------------------------------------ tugas kelompok
+
+/**
+ * Groups of one task, members included. Ordered by name naturally so
+ * "Kelompok 10" never lands between "Kelompok 1" and "Kelompok 2".
+ */
+export async function listKelompok(
+  ruangId: number,
+  tugasId: number,
+): Promise<KelompokRow[]> {
+  const { rows } = await pool.query<{
+    id: number;
+    nama: string;
+    anggota: { siswaId: string; nama: string }[];
+  }>(
+    `select k.id,
+            k.nama,
+            coalesce((
+              select json_agg(
+                       json_build_object('siswaId', a.siswa_id, 'nama', u.name)
+                       order by u.name
+                     )
+                from kelompok_anggota a
+                join "user" u on u.id = a.siswa_id
+               where a.kelompok_id = k.id
+            ), '[]'::json) as anggota
+       from kelompok_tugas k
+       join tugas t on t.id = k.tugas_id
+      where k.tugas_id = $2 and t.ruang_id = $1
+      order by k.id asc`,
+    [ruangId, tugasId],
+  );
+  return rows;
+}
+
+/** The group of one student on one task, or null when they have none yet. */
+export async function kelompokSiswa(
+  tugasId: number,
+  siswaId: string,
+): Promise<{ id: number; nama: string; anggota: { siswaId: string; nama: string }[] } | null> {
+  const { rows } = await pool.query<{
+    id: number;
+    nama: string;
+    anggota: { siswaId: string; nama: string }[] | null;
+  }>(
+    `select k.id,
+            k.nama,
+            (
+              select json_agg(json_build_object('siswaId', a.siswa_id, 'nama', u.name) order by u.name)
+                from kelompok_anggota a
+                join "user" u on u.id = a.siswa_id
+               where a.kelompok_id = k.id
+            ) as anggota
+       from kelompok_tugas k
+       join kelompok_anggota a on a.kelompok_id = k.id
+      where k.tugas_id = $1 and a.siswa_id = $2`,
+    [tugasId, siswaId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return { id: row.id, nama: row.nama, anggota: row.anggota ?? [] };
+}
+
+/**
+ * Replaces the whole group set of a task in one transaction. The teacher
+ * edits groups as a whole (rename, move members, delete), so writing rows
+ * one by one would leave half a set behind on a failed save.
+ *
+ * Fails when the task already has group submissions and a saved group loses
+ * every member — such a group's submission would orphan.
+ */
+export async function simpanKelompok({
+  ruangId,
+  tugasId,
+  kelompok,
+}: {
+  ruangId: number;
+  tugasId: number;
+  /** One entry per group; `id` null = new group, members are student ids. */
+  kelompok: { id: number | null; nama: string; siswaIds: string[] }[];
+}): Promise<Hasil> {
+  const cek = await pool.query<{ kelas_id: number; tipe_kerja: string }>(
+    `select r.kelas_id, t.tipe_kerja
+       from tugas t join ruang r on r.id = t.ruang_id
+      where t.id = $1 and t.ruang_id = $2`,
+    [tugasId, ruangId],
+  );
+  const info = cek.rows[0];
+  if (!info) return { ok: false, error: "Tugas tidak ditemukan di ruang ini." };
+  if (info.tipe_kerja !== "kelompok") {
+    return { ok: false, error: "Tugas ini bukan tugas kelompok." };
+  }
+
+  const kelasId = info.kelas_id;
+  const semuaSiswa = new Set<string>();
+  for (const k of kelompok) {
+    const nama = k.nama.trim();
+    if (!nama) return { ok: false, error: "Ada kelompok tanpa nama." };
+    if (nama.length > 80) {
+      return { ok: false, error: "Nama kelompok maksimal 80 karakter." };
+    }
+    if (k.siswaIds.length === 0) {
+      return { ok: false, error: `Kelompok "${nama}" belum punya anggota.` };
+    }
+    for (const s of k.siswaIds) semuaSiswa.add(s);
+  }
+
+  const ada = await pool.query<{ siswa_id: string; kelompok_id: number | null }>(
+    `select p.siswa_id, p.kelompok_id
+       from pengumpulan p
+      where p.tugas_id = $1
+        and p.kelompok_id is not null`,
+    [tugasId],
+  );
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    // Verify every named student is an active student of the class — the same
+    // guard the grade sheet uses, so a forged id writes nothing.
+    const sah = await client.query<{ id: string }>(
+      `select id from "user"
+        where id = any($1::text[]) and role = 'siswa' and aktif and kelas_id = $2`,
+      [Array.from(semuaSiswa), kelasId],
+    );
+    if (sah.rowCount !== semuaSiswa.size) {
+      await client.query("rollback");
+      return { ok: false, error: "Ada siswa yang bukan anggota kelas ini." };
+    }
+
+    // One student, one group per task.
+    const terlihat = new Set<string>();
+    for (const k of kelompok) {
+      for (const s of k.siswaIds) {
+        if (terlihat.has(s)) {
+          await client.query("rollback");
+          return {
+            ok: false,
+            error: "Satu siswa hanya boleh ada di satu kelompok.",
+          };
+        }
+        terlihat.add(s);
+      }
+    }
+
+    // Delete groups that disappeared. A group that already sent work cannot
+    // be deleted — its submission would dangle without it.
+    for (const r of ada.rows) {
+      const masihAda = kelompok.some((k) => k.id === r.kelompok_id);
+      if (!masihAda) {
+        await client.query("rollback");
+        return {
+          ok: false,
+          error:
+            "Kelompok yang sudah mengumpulkan tidak boleh dihapus. Hapus pengumpulannya dahulu.",
+        };
+      }
+    }
+
+    const lama = await client.query<{ id: number; nama: string }>(
+      `select id, nama from kelompok_tugas where tugas_id = $1`,
+      [tugasId],
+    );
+
+    for (const k of kelompok) {
+      let kelompokId = k.id;
+      if (kelompokId) {
+        await client.query(
+          `update kelompok_tugas set nama = $2 where id = $1 and tugas_id = $3`,
+          [kelompokId, k.nama.trim(), tugasId],
+        );
+      } else {
+        const masuk = await client.query<{ id: number }>(
+          `insert into kelompok_tugas (tugas_id, nama) values ($1, $2) returning id`,
+          [tugasId, k.nama.trim()],
+        );
+        kelompokId = masuk.rows[0]!.id;
+      }
+      if (!kelompokId) return { ok: false, error: "Kelompok gagal disimpan." };
+
+      await client.query(
+        `delete from kelompok_anggota where kelompok_id = $1`,
+        [kelompokId],
+      );
+      await client.query(
+        `insert into kelompok_anggota (kelompok_id, siswa_id)
+         select $1, s from unnest($2::text[]) as s`,
+        [kelompokId, k.siswaIds],
+      );
+    }
+
+    const dipakai = new Set(kelompok.filter((k) => k.id).map((k) => k.id as number));
+    for (const l of lama.rows) {
+      if (!dipakai.has(l.id)) {
+        await client.query(`delete from kelompok_tugas where id = $1`, [l.id]);
+      }
+    }
+
+    await client.query("commit");
+    return { ok: true };
+  } catch (galat) {
+    await client.query("rollback");
+    throw galat;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * The teacher's sheet for a group task: one row per group, with every member
+ * named so per-member grading has somewhere to write.
+ */
+export async function listPengumpulanKelompok(
+  tugasId: number,
+  kelasId: number,
+): Promise<BarisPengumpulanKelompok[]> {
+  const { rows } = await pool.query<{
+    kelompok_id: number;
+    nama: string;
+    anggota: { siswaId: string; nama: string; nisn: string | null }[] | null;
+    teks: string | null;
+    file_url: string | null;
+    dikumpulkan_at: string | null;
+    nilai: number | null;
+    nilai_anggota: { siswa_id: string; nilai: number }[] | null;
+  }>(
+    `select k.id as kelompok_id,
+            k.nama,
+            (
+              select json_agg(
+                       json_build_object(
+                         'siswaId', a.siswa_id,
+                         'nama', u.name,
+                         'nisn', u.username
+                       ) order by u.name
+                     )
+                from kelompok_anggota a
+                join "user" u on u.id = a.siswa_id
+               where a.kelompok_id = k.id
+            ) as anggota,
+            p.teks,
+            p.file_url,
+            to_char(p.dikumpulkan_at at time zone 'Asia/Jakarta',
+                    'YYYY-MM-DD HH24:MI') as dikumpulkan_at,
+            p.nilai,
+            (
+              select json_agg(json_build_object('siswa_id', s.siswa_id, 'nilai', s.nilai))
+                from pengumpulan s
+               where s.tugas_id = k.tugas_id
+                 and s.kelompok_id is null
+                 and s.nilai is not null
+                 and s.siswa_id in (
+                   select a2.siswa_id from kelompok_anggota a2
+                    where a2.kelompok_id = k.id
+                 )
+            ) as nilai_anggota
+       from kelompok_tugas k
+       join tugas t on t.id = k.tugas_id
+       left join pengumpulan p on p.tugas_id = k.tugas_id and p.kelompok_id = k.id
+      where k.tugas_id = $1
+        and t.ruang_id in (select id from ruang where kelas_id = $2)
+      order by k.id asc`,
+    [tugasId, kelasId],
+  );
+
+  return rows.map((row) => ({
+    kelompokId: row.kelompok_id,
+    namaKelompok: row.nama,
+    anggota: row.anggota ?? [],
+    dikumpulkan: row.teks !== null || row.file_url !== null,
+    dikumpulkanAt: row.dikumpulkan_at,
+    teks: row.teks,
+    fileUrl: row.file_url,
+    nilai: row.nilai,
+    nilaiAnggota: Object.fromEntries(
+      (row.nilai_anggota ?? []).map((s) => [s.siswa_id, s.nilai]),
+    ),
+  }));
 }

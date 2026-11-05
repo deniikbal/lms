@@ -7,7 +7,9 @@ import { LembarTugas } from "@/components/ruang-belajar/lembar-tugas";
 import {
   aksesRuang,
   getTugasDetail,
+  listAnggota,
   listPengumpulan,
+  listPengumpulanKelompok,
 } from "@/lib/ruang-belajar";
 import { requireRole } from "@/lib/session";
 
@@ -47,13 +49,23 @@ async function Isi({
   const tugas = await getTugasDetail(ruangId, tid);
   if (!tugas) notFound();
 
-  const pengumpulan = await listPengumpulan(tid, akses.ruang.kelasId);
+  const [pengumpulan, kelompok, anggota] = await Promise.all([
+    listPengumpulan(tid, akses.ruang.kelasId),
+    tugas.tipeKerja === "kelompok"
+      ? listPengumpulanKelompok(tid, akses.ruang.kelasId)
+      : Promise.resolve([]),
+    tugas.tipeKerja === "kelompok"
+      ? listAnggota(akses.ruang.kelasId)
+      : Promise.resolve([]),
+  ]);
 
   return (
     <LembarTugas
       ruang={akses.ruang}
       tugas={tugas}
       pengumpulan={pengumpulan}
+      kelompok={kelompok}
+      anggota={anggota}
       base={`/admin/ruang/${ruangId}`}
     />
   );

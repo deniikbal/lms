@@ -31,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 export type JenisBuat = "pertemuan" | "tugas" | "kuis";
 
@@ -59,6 +60,8 @@ export type TugasEdit = {
   /** `YYYY-MM-DD HH:MM` (Jakarta), or null when there is no deadline. */
   tenggat: string | null;
   tipe: "file" | "teks" | "keduanya";
+  tipeKerja: "individu" | "kelompok";
+  nilaiSama: boolean;
   bolehTerlambat: boolean;
   terbit: boolean;
   /** Optional PDF the teacher attached (Drive). */
@@ -133,6 +136,10 @@ export function BuatDialog({
   const [tipe, setTipe] = useState<"file" | "teks" | "keduanya">(
     tugas?.tipe ?? "file",
   );
+  const [tipeKerja, setTipeKerja] = useState<"individu" | "kelompok">(
+    tugas?.tipeKerja ?? "individu",
+  );
+  const [nilaiSama, setNilaiSama] = useState(tugas?.nilaiSama ?? true);
   const [bolehTerlambat, setBolehTerlambat] = useState(tugas?.bolehTerlambat ?? true);
 
   const [mulai, setMulai] = useState("");
@@ -143,6 +150,11 @@ export function BuatDialog({
     file: "Hanya file",
     teks: "Hanya teks",
     keduanya: "File atau teks",
+  };
+
+  const kerjaItems: Record<string, React.ReactNode> = {
+    individu: "Individu",
+    kelompok: "Kelompok",
   };
 
   function reset() {
@@ -159,6 +171,8 @@ export function BuatDialog({
     setTenggat(tugas?.tenggat ?? "");
     setDeskripsiTugas(tugas?.deskripsi ?? "");
     setTipe(tugas?.tipe ?? "file");
+    setTipeKerja(tugas?.tipeKerja ?? "individu");
+    setNilaiSama(tugas?.nilaiSama ?? true);
     setBolehTerlambat(tugas?.bolehTerlambat ?? true);
     setMulai("");
     setSelesai("");
@@ -211,6 +225,8 @@ export function BuatDialog({
                   terbit,
                   lampiran,
                   hapusLampiran: hapusLampiran && !lampiran,
+                  tipeKerja,
+                  nilaiSama,
                 })
               : await tambahTugasAction({
                   ruangId,
@@ -221,6 +237,8 @@ export function BuatDialog({
                   bolehTerlambat,
                   terbit,
                   lampiran,
+                  tipeKerja,
+                  nilaiSama,
                 })
             : await tambahKuisAction({
                 ruangId,
@@ -467,6 +485,60 @@ export function BuatDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/*
+                Kerja individu atau kelompok. Kelompoknya sendiri diatur di
+                halaman tugas setelah ini dibuat — di sini cukup memilih modanya.
+              */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="tugas-kerja">Dikerjakan</Label>
+                  <Select
+                    items={kerjaItems}
+                    value={tipeKerja}
+                    onValueChange={(value) =>
+                      setTipeKerja(value as typeof tipeKerja)
+                    }
+                  >
+                    <SelectTrigger id="tugas-kerja" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(kerjaItems).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>
+                          {label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end pb-1">
+                  <label
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2",
+                      tipeKerja === "kelompok"
+                        ? ""
+                        : "pointer-events-none opacity-40",
+                    )}
+                  >
+                    <span className="space-y-0.5">
+                      <span className="block text-sm text-foreground">
+                        Nilai sama sekelompok
+                      </span>
+                      <span className="block text-[0.7rem] text-muted-foreground">
+                        {nilaiSama
+                          ? "Satu nilai untuk semua anggota"
+                          : "Nilai diatur per anggota"}
+                      </span>
+                    </span>
+                    <Switch
+                      checked={nilaiSama}
+                      onCheckedChange={setNilaiSama}
+                      disabled={tipeKerja !== "kelompok"}
+                    />
+                  </label>
                 </div>
               </div>
               <label className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">

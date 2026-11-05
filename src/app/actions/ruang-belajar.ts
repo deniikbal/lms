@@ -10,9 +10,11 @@ import {
   kosongkanBerkasPengumpulan,
   kirimDiskusi,
   bolehUbah,
+  listKelompok,
   simpanMeet,
   simpanMateri,
   simpanNilaiTugas,
+  simpanKelompok,
   simpanPengaturan,
   simpanPengumpulan,
   simpanPresensi,
@@ -24,6 +26,7 @@ import {
   tambahPertemuan,
   tambahTugas,
   ubahPertemuan,
+  type KelompokRow,
   type StatusPresensi,
 } from "@/lib/ruang-belajar";
 import {
@@ -436,6 +439,8 @@ export async function tambahTugasAction(input: {
   bolehTerlambat: boolean;
   terbit: boolean;
   lampiran?: File | null;
+  tipeKerja?: "individu" | "kelompok";
+  nilaiSama?: boolean;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   if (!ruangId) return { error: "Ruang belajar tidak ditemukan." };
@@ -456,6 +461,8 @@ export async function tambahTugasAction(input: {
     return { error: "Jenis pengumpulan tidak dikenal." };
   }
 
+  const tipeKerja = input.tipeKerja === "kelompok" ? "kelompok" : "individu";
+
   const tenggat = input.tenggat ? tanggalJam(input.tenggat) : null;
   if (input.tenggat && !tenggat) return { error: "Tenggat tidak valid." };
 
@@ -472,6 +479,8 @@ export async function tambahTugasAction(input: {
     terbit: Boolean(input.terbit),
     lampiranNama: berkas.nama,
     lampiranUrl: berkas.url,
+    tipeKerja,
+    nilaiSama: input.nilaiSama !== false,
   });
   if (!hasil.ok) return { error: hasil.error };
 
@@ -490,6 +499,8 @@ export async function ubahTugasAction(input: {
   terbit: boolean;
   lampiran?: File | null;
   hapusLampiran?: boolean;
+  tipeKerja?: "individu" | "kelompok";
+  nilaiSama?: boolean;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const tugasId = id(input.tugasId);
@@ -510,6 +521,13 @@ export async function ubahTugasAction(input: {
   if (!"file teks keduanya".split(" ").includes(tipe)) {
     return { error: "Jenis pengumpulan tidak dikenal." };
   }
+
+  const tipeKerja =
+    input.tipeKerja === "kelompok"
+      ? "kelompok"
+      : input.tipeKerja === "individu"
+        ? "individu"
+        : undefined;
 
   const tenggat = input.tenggat ? tanggalJam(input.tenggat) : null;
   if (input.tenggat && !tenggat) return { error: "Tenggat tidak valid." };
@@ -544,6 +562,8 @@ export async function ubahTugasAction(input: {
     terbit: Boolean(input.terbit),
     lampiranNama,
     lampiranUrl,
+    tipeKerja,
+    nilaiSama: input.nilaiSama === undefined ? undefined : Boolean(input.nilaiSama),
   });
   if (!hasil.ok) return { error: hasil.error };
 
@@ -560,6 +580,7 @@ export async function hapusPengumpulanAction(input: {
   ruangId: number;
   tugasId: number;
   siswaId: string;
+  kelompokId?: number | null;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const tugasId = id(input.tugasId);
@@ -574,7 +595,12 @@ export async function hapusPengumpulanAction(input: {
     return { error: "Hanya guru pengampu yang bisa menghapus pengumpulan." };
   }
 
-  const hasil = await hapusPengumpulan({ ruangId, tugasId, siswaId });
+  const hasil = await hapusPengumpulan({
+    ruangId,
+    tugasId,
+    siswaId,
+    kelompokId: input.kelompokId ?? null,
+  });
   if (!hasil.ok) return { error: "Pengumpulan tidak ditemukan atau sudah terhapus." };
 
   for (const url of hasil.fileUrls) {
@@ -923,6 +949,8 @@ export async function simpanNilaiTugasAction(input: {
   ruangId: number;
   tugasId: number;
   entri: { siswaId: string; nilai: number | null }[];
+  /** Group-task shared grades (nilai_sama mode), one per group. */
+  nilaiKelompok?: { kelompokId: number; nilai: number | null }[];
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const tugasId = id(input.tugasId);
@@ -935,21 +963,32 @@ export async function simpanNilaiTugasAction(input: {
   const daftar = Array.isArray(input.entri) ? input.entri : [];
   if (daftar.length > 500) return { error: "Terlalu banyak baris sekaligus." };
 
+  /** Valid number 0–100, null for empty, NaN for invalid — mirrors the sheet. */
+  const cekNilai = (mentah: unknown): number | null => {
+    if (mentah === null || mentah === undefined || String(mentah).trim() === "") {
+      return null;
+    }
+    const angka = Number(mentah);
+    return Number.isInteger(angka) && angka >= 0 && angka <= 100 ? angka : NaN;
+  };
+
   const entri: { siswaId: string; nilai: number | null }[] = [];
   for (const baris of daftar) {
     const siswaId = String(baris?.siswaId ?? "").trim();
     if (!siswaId) return { error: "Ada baris nilai tanpa siswa." };
 
-    const mentah = baris?.nilai;
-    let nilai: number | null = null;
-    if (mentah !== null && mentah !== undefined && String(mentah).trim() !== "") {
-      nilai = Number(mentah);
-      if (!Number.isInteger(nilai) || nilai < 0 || nilai > 100) {
-        return { error: "Nilai harus bilangan bulat 0–100." };
-      }
-    }
-
+    const nilai = cekNilai(baris?.nilai);
+    if (Number.isNaN(nilai)) return { error: "Nilai harus bilangan bulat 0–100." };
     entri.push({ siswaId, nilai });
+  }
+
+  const kelompok: { kelompokId: number; nilai: number | null }[] = [];
+  for (const baris of Array.isArray(input.nilaiKelompok) ? input.nilaiKelompok : []) {
+    const kelompokId = id(baris?.kelompokId);
+    if (!kelompokId) return { error: "Ada baris nilai tanpa kelompok." };
+    const nilai = cekNilai(baris?.nilai);
+    if (Number.isNaN(nilai)) return { error: "Nilai harus bilangan bulat 0–100." };
+    kelompok.push({ kelompokId, nilai });
   }
 
   const hasil = await simpanNilaiTugas({
@@ -957,9 +996,48 @@ export async function simpanNilaiTugasAction(input: {
     tugasId,
     kelasId: akses.ruang.kelasId,
     entri,
+    nilaiKelompok: kelompok,
   });
   if (!hasil.ok) return { error: hasil.error };
 
   segarkanTugas(ruangId, tugasId);
   return { error: null };
+}
+
+// ------------------------------------------------------------ tugas kelompok
+
+/** Saves the whole group set of one task, replacing what was there. */
+export async function simpanKelompokAction(input: {
+  ruangId: number;
+  tugasId: number;
+  kelompok: { id: number | null; nama: string; siswaIds: string[] }[];
+}): Promise<HasilAksi & { kelompok?: KelompokRow[] }> {
+  const ruangId = id(input.ruangId);
+  const tugasId = id(input.tugasId);
+  if (!ruangId || !tugasId) return { error: "Tugas tidak ditemukan." };
+
+  const { akses, boleh } = await siapkan(ruangId);
+  if (!akses) return { error: "Anda tidak punya akses ke ruang ini." };
+  if (!boleh) return { error: "Hanya guru pengampu yang bisa mengatur kelompok." };
+
+  const daftar = Array.isArray(input.kelompok) ? input.kelompok : [];
+  if (daftar.length > 50) return { error: "Terlalu banyak kelompok sekaligus." };
+
+  const bersih = daftar.map((k) => ({
+    id: k?.id ? id(k.id) : null,
+    nama: String(k?.nama ?? "").trim(),
+    siswaIds: Array.isArray(k?.siswaIds)
+      ? k.siswaIds.map((s: unknown) => String(s)).slice(0, 200)
+      : [],
+  }));
+
+  const hasil = await simpanKelompok({
+    ruangId,
+    tugasId,
+    kelompok: bersih,
+  });
+  if (!hasil.ok) return { error: hasil.error };
+
+  segarkan(ruangId);
+  return { error: null, kelompok: await listKelompok(ruangId, tugasId) };
 }

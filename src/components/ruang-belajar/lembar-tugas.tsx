@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, FileTextIcon, UsersIcon } from "lucide-react";
 
+import { KelompokPanel } from "@/components/ruang-belajar/kelompok-panel";
+import { NilaiKelompokGrid } from "@/components/ruang-belajar/nilai-kelompok-grid";
 import { NilaiTugasGrid } from "@/components/ruang-belajar/nilai-tugas-grid";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +10,9 @@ import { cn } from "@/lib/utils";
 import {
   keteranganTenggat,
   labelTipe,
+  type AnggotaRow,
+  type BarisPengumpulanKelompok,
+  type KelompokRow,
   type PengumpulanRow,
   type RuangHeader,
   type TugasDetail,
@@ -21,11 +26,17 @@ export function LembarTugas({
   ruang,
   tugas,
   pengumpulan,
+  kelompok,
+  anggota,
   base,
 }: {
   ruang: RuangHeader;
   tugas: TugasDetail;
   pengumpulan: PengumpulanRow[];
+  /** Group rows — only for a group task. */
+  kelompok?: BarisPengumpulanKelompok[];
+  /** The class roster, for the group editor. */
+  anggota?: AnggotaRow[];
   /** The room URL, e.g. `/guru/ruang/73`. */
   base: string;
 }) {
@@ -127,11 +138,31 @@ export function LembarTugas({
         </a>
       ) : null}
 
-      <NilaiTugasGrid
-        ruangId={ruang.id}
-        tugasId={tugas.id}
-        pengumpulan={pengumpulan}
-      />
+      {tugas.tipeKerja === "kelompok" ? (
+        <>
+          <KelompokPanel
+            ruangId={ruang.id}
+            tugasId={tugas.id}
+            anggota={anggota ?? []}
+            kelompok={(kelompok ?? []).map((k) => ({
+              id: k.kelompokId,
+              nama: k.namaKelompok,
+              anggota: k.anggota.map((a) => ({ siswaId: a.siswaId, nama: a.nama })),
+            }))}
+          />
+          <NilaiKelompokGrid
+            ruang={ruang}
+            tugas={tugas}
+            baris={kelompok ?? []}
+          />
+        </>
+      ) : (
+        <NilaiTugasGrid
+          ruangId={ruang.id}
+          tugasId={tugas.id}
+          pengumpulan={pengumpulan}
+        />
+      )}
     </div>
   );
 }

@@ -30,6 +30,7 @@ export function HapusPengumpulan({
   nama,
   adaJawaban,
   boleh,
+  kelompokId,
 }: {
   ruangId: number;
   tugasId: number;
@@ -37,6 +38,8 @@ export function HapusPengumpulan({
   nama: string;
   adaJawaban: boolean;
   boleh: boolean;
+  /** Group task: delete the group's content row instead of a student's. */
+  kelompokId?: number | null;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -48,7 +51,12 @@ export function HapusPengumpulan({
   function hapus() {
     setError(null);
     startTransition(async () => {
-      const hasil = await hapusPengumpulanAction({ ruangId, tugasId, siswaId });
+      const hasil = await hapusPengumpulanAction({
+        ruangId,
+        tugasId,
+        siswaId,
+        kelompokId: kelompokId ?? null,
+      });
       if (hasil.error) {
         setError(hasil.error);
         return;

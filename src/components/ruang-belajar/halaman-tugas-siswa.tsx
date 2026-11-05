@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, FileTextIcon, InfoIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClipboardListIcon, FileTextIcon, InfoIcon, UsersIcon } from "lucide-react";
 
 import { FormPengumpulan } from "@/components/ruang-belajar/form-pengumpulan";
 import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
@@ -122,6 +122,36 @@ export function HalamanTugasSiswa({
             className="shrink-0 rounded-lg border border-amber-600/40 bg-amber-500/15 px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-500/25 dark:text-amber-400"
           />
         </div>
+      ) : null}
+
+      {tugas.tipeKerja === "kelompok" ? (
+        <section
+          aria-label="Kelompok Anda"
+          className="rounded-xl border border-border/70 bg-card px-4 py-3"
+        >
+          {pengumpulan.kelompok ? (
+            <>
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                <UsersIcon className="size-4" aria-hidden />
+                {pengumpulan.kelompok.nama}
+              </h2>
+              <p className="mt-1.5 text-sm text-foreground">
+                {pengumpulan.kelompok.anggota.map((a) => a.nama).join(", ")}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Tugas ini dikerjakan berkelompok — satu jawaban untuk seluruh
+                kelompok. Siapa pun anggotanya boleh mengunggah, dan unggahan
+                terakhir berlaku untuk semua.
+              </p>
+            </>
+          ) : (
+            <p className="flex items-start gap-2 text-sm text-muted-foreground">
+              <InfoIcon className="mt-0.5 size-4 shrink-0" />
+              Anda belum masuk kelompok untuk tugas ini. Hubungi guru pengampu
+              agar didaftarkan sebelum mengumpulkan.
+            </p>
+          )}
+        </section>
       ) : null}
 
       {tugas.tipe !== "teks" ? (

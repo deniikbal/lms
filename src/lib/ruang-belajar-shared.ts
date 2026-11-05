@@ -329,6 +329,10 @@ export type TugasRow = {
   id: number;
   judul: string;
   tipe: "file" | "teks" | "keduanya";
+  /** `kelompok` = one submission covers a whole group. */
+  tipeKerja: "individu" | "kelompok";
+  /** One grade for the whole group, versus per-member grades. */
+  nilaiSama: boolean;
   terbit: boolean;
   bolehTerlambat: boolean;
   /** Formatted `4 Nov 2026 23.59`, or null when there is no deadline. */
@@ -589,6 +593,8 @@ export type TugasDetail = {
   judul: string;
   deskripsi: string | null;
   tipe: "file" | "teks" | "keduanya";
+  tipeKerja: "individu" | "kelompok";
+  nilaiSama: boolean;
   terbit: boolean;
   bolehTerlambat: boolean;
   /** `YYYY-MM-DD HH24:MI` in Asia/Jakarta, or null. */
@@ -598,6 +604,27 @@ export type TugasDetail = {
   /** Optional PDF the teacher attached for the task (Drive). */
   lampiranNama: string | null;
   lampiranUrl: string | null;
+};
+
+/** One row of the teacher's group-task sheet: a group plus its members. */
+export type BarisPengumpulanKelompok = {
+  kelompokId: number;
+  namaKelompok: string;
+  anggota: { siswaId: string; nama: string; nisn: string | null }[];
+  dikumpulkan: boolean;
+  dikumpulkanAt: string | null;
+  teks: string | null;
+  fileUrl: string | null;
+  /** The group's shared grade (nilai_sama mode). */
+  nilai: number | null;
+  /** Per-member grades when the task grades members separately. */
+  nilaiAnggota: Record<string, number | null>;
+};
+
+export type KelompokRow = {
+  id: number;
+  nama: string;
+  anggota: { siswaId: string; nama: string }[];
 };
 
 /**
@@ -635,6 +662,12 @@ export type PengumpulanSiswa = {
   fileUrl: string | null;
   nilai: number | null;
   terlambat: boolean;
+  /** Set on a group task: the student's group and everyone in it. */
+  kelompok: {
+    id: number;
+    nama: string;
+    anggota: { siswaId: string; nama: string }[];
+  } | null;
 };
 
 /**

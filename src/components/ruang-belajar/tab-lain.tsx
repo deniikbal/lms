@@ -169,6 +169,8 @@ export function TabTugas({
                               ? item.tenggat.replace(" ", "T")
                               : null,
                             tipe: item.tipe,
+                            tipeKerja: item.tipeKerja,
+                            nilaiSama: item.nilaiSama,
                             bolehTerlambat: item.bolehTerlambat,
                             terbit: item.terbit,
                             lampiranNama: item.lampiranNama,
@@ -286,6 +288,8 @@ export function TabTugas({
                         // `YYYY-MM-DD HH24:MI`; the input needs a literal T.
                         tenggat: item.tenggat ? item.tenggat.replace(" ", "T") : null,
                         tipe: item.tipe,
+                        tipeKerja: item.tipeKerja,
+                        nilaiSama: item.nilaiSama,
                         bolehTerlambat: item.bolehTerlambat,
                         terbit: item.terbit,
                         lampiranNama: item.lampiranNama,
