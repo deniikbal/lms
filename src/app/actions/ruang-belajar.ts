@@ -291,6 +291,8 @@ export async function tambahPertemuanAction(input: {
 export async function hapusPertemuanAction(input: {
   ruangId: number;
   pertemuanId: number;
+  /** Teacher-confirmed wipe that also removes attendance and completion marks. */
+  paksa?: boolean;
 }): Promise<HasilAksi> {
   const ruangId = id(input.ruangId);
   const pertemuanId = id(input.pertemuanId);
@@ -303,7 +305,7 @@ export async function hapusPertemuanAction(input: {
   // Read before delete: the Meet room is cancelled, not orphaned in Calendar.
   const lama = await getPertemuanDetail(ruangId, pertemuanId);
 
-  const hasil = await hapusPertemuan({ ruangId, pertemuanId });
+  const hasil = await hapusPertemuan({ ruangId, pertemuanId, paksa: input.paksa });
   if (!hasil.ok) return { error: hasil.error };
 
   // The delete above is the authority on "was attendance recorded"; cancelling

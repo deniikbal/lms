@@ -4,6 +4,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   ClipboardCheckIcon,
+  FileTextIcon,
   ListVideoIcon,
   PaperclipIcon,
   PencilIcon,
@@ -319,6 +320,7 @@ function KartuPertemuan({
                   pertemuanId={pertemuan.id}
                   boleh
                   tercatat={pertemuan.tercatat}
+                  jumlahSelesai={pertemuan.jumlahSelesai}
                 />
               </span>
             ) : (
@@ -342,6 +344,12 @@ function KartuPertemuan({
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {!pertemuan.terbit ? <Chip tone="kuning">Draf</Chip> : null}
+
+            {pertemuan.adaMateri ? (
+              <Chip tone="ungu" icon={<FileTextIcon className="size-3" />}>
+                Materi
+              </Chip>
+            ) : null}
 
             {pecahBerkas(pertemuan.videoUrl).map((url, i) => (
               <a

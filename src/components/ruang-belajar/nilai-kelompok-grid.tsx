@@ -2,18 +2,21 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  CheckIcon,
-  ChevronDownIcon,
-  Loader2Icon,
-  UsersIcon,
-} from "lucide-react";
+import { CheckIcon, ChevronDownIcon, Loader2Icon, UsersIcon } from "lucide-react";
 
 import { simpanNilaiTugasAction } from "@/app/actions/ruang-belajar";
 import { HapusPengumpulan } from "@/components/ruang-belajar/hapus-pengumpulan";
 import { LihatBerkasNilai } from "@/components/ruang-belajar/lihat-berkas-nilai";
 import { TONE } from "@/components/ruang-belajar/tone";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
   formatTanggalJam,
@@ -181,16 +184,14 @@ export function NilaiKelompokGrid({
                 ? { label: "Dinilai", tone: "biru" as const }
                 : { label: "Sudah", tone: "hijau" as const };
             return (
-              <div
-                key={b.kelompokId}
-                className="overflow-hidden rounded-xl border border-border/70 bg-card"
-              >
-                <div className="flex items-center gap-3 px-3 py-2.5">
-                  <button
+              <Card key={b.kelompokId} size="sm" className="gap-0 py-0">
+                <CardHeader className="flex flex-row items-center gap-3 px-3 py-2.5">
+                  <Button
                     type="button"
+                    variant="ghost"
                     onClick={() => setTerbuka(buka ? null : b.kelompokId)}
                     aria-expanded={buka}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+                    className="h-auto min-w-0 flex-1 justify-start px-0 hover:bg-transparent"
                   >
                     <ChevronDownIcon
                       className={cn(
@@ -204,16 +205,14 @@ export function NilaiKelompokGrid({
                     <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                       {b.anggota.length} anggota
                     </span>
-                  </button>
+                  </Button>
 
-                  <span
-                    className={cn(
-                      "inline-flex shrink-0 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
-                      TONE[status.tone],
-                    )}
+                  <Badge
+                    variant="outline"
+                    className={cn("shrink-0 font-medium", TONE[status.tone])}
                   >
                     {status.label}
-                  </span>
+                  </Badge>
 
                   {b.fileUrl ? (
                     <LihatBerkasNilai
@@ -242,16 +241,16 @@ export function NilaiKelompokGrid({
                     kelompokId={b.kelompokId}
                     boleh
                   />
-                </div>
+                </CardHeader>
 
                 {/* Grade inputs: one per group (shared) or one per member. */}
-                <div className="border-t border-border/60 bg-muted/20 px-3 py-2">
+                <CardContent className="border-t border-border/60 bg-muted/20 px-3 py-2">
                   {shared ? (
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-xs text-muted-foreground">
                         Nilai kelompok
                       </span>
-                      <input
+                      <Input
                         type="number"
                         min={0}
                         max={100}
@@ -267,7 +266,7 @@ export function NilaiKelompokGrid({
                             simpan();
                           }
                         }}
-                        className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none transition-colors tabular-nums placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed"
+                        className="w-20 tabular-nums"
                       />
                     </div>
                   ) : (
@@ -280,7 +279,7 @@ export function NilaiKelompokGrid({
                           <span className="truncate text-sm text-foreground">
                             {a.nama}
                           </span>
-                          <input
+                          <Input
                             type="number"
                             min={0}
                             max={100}
@@ -296,16 +295,16 @@ export function NilaiKelompokGrid({
                                 simpan();
                               }
                             }}
-                            className="h-8 w-20 rounded-lg border border-border bg-background px-2 text-sm text-foreground outline-none transition-colors tabular-nums placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 disabled:cursor-not-allowed"
+                            className="w-20 tabular-nums"
                           />
                         </li>
                       ))}
                     </ul>
                   )}
-                </div>
+                </CardContent>
 
                 {buka ? (
-                  <div className="border-t border-border/60 px-3 py-2.5">
+                  <CardContent className="border-t border-border/60 px-3 py-2.5">
                     <p className="mb-1 text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">
                       Jawaban {b.namaKelompok}
                       {b.dikumpulkanAt ? (
@@ -317,18 +316,18 @@ export function NilaiKelompokGrid({
                     <p className="text-sm whitespace-pre-line text-foreground">
                       {b.teks?.trim() || "—"}
                     </p>
-                  </div>
+                  </CardContent>
                 ) : null}
-              </div>
+              </Card>
             );
           })}
         </div>
       )}
 
       {error ? (
-        <p className="text-xs text-destructive" role="alert">
-          {error}
-        </p>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
       <div className="sticky bottom-3 z-10">

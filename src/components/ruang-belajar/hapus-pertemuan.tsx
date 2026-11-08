@@ -18,37 +18,41 @@ import {
 import { Button } from "@/components/ui/button";
 
 /**
- * Delete for a meeting with no attendance yet.
+ * Delete for a meeting.
  *
- * The gating is done twice on purpose: the sheet hides the button when `tercatat`
- * says otherwise, and the action re-checks in SQL so a stale page cannot delete a
- * meeting whose attendance arrived in the meantime. Failure shows as a message,
- * not a dead click.
+ * With no attendance the meeting goes quietly, as before. Once attendance
+ * exists the same button becomes a wipe: the teacher is told exactly how many
+ * attendance rows and completion marks go with it, and the action re-checks
+ * authorization in SQL.
  */
 export function HapusPertemuan({
   ruangId,
   pertemuanId,
   boleh,
   tercatat,
+  jumlahSelesai = 0,
 }: {
   ruangId: number;
   pertemuanId: number;
   boleh: boolean;
+  /** Attendance rows recorded for this meeting. */
   tercatat: number;
+  /** Students who marked the material as done. */
+  jumlahSelesai?: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  // Hidden, not disabled: a disabled button next to nothing to fill reads as
-  // broken, while its absence just says "nothing to do here".
-  if (!boleh || tercatat > 0) return null;
+  if (!boleh) return null;
+
+  const adaData = tercatat > 0 || jumlahSelesai > 0;
 
   function hapus() {
     setError(null);
     startTransition(async () => {
-      const hasil = await hapusPertemuanAction({ ruangId, pertemuanId });
+      const hasil = await hapusPertemuanAction({ ruangId, pertemuanId, paksa: adaData });
       if (hasil.error) {
         setError(hasil.error);
         return;
@@ -83,8 +87,25 @@ export function HapusPertemuan({
         <AlertDialogHeader>
           <AlertDialogTitle>Hapus pertemuan ini?</AlertDialogTitle>
           <AlertDialogDescription>
-            Belum ada presensi yang tercatat, jadi aman dihapus. Materi dan
-            pengaturan ikut hilang.
+            {adaData ? (
+              <>
+                Pertemuan ini sudah punya data. Menghapusnya juga menghapus{" "}
+                <strong className="font-medium text-foreground">
+                  {tercatat} baris presensi
+                </strong>
+                {jumlahSelesai > 0 ? (
+                  <>
+                    {" dan "}
+                    <strong className="font-medium text-foreground">
+                      {jumlahSelesai} tanda selesai
+                    </strong>
+                  </>
+                ) : null}
+                . Tindakan ini tidak bisa dibatalkan.
+              </>
+            ) : (
+              <>Belum ada presensi yang tercatat, jadi aman dihapus. Materi dan pengaturan ikut hilang.</>
+            )}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? (
@@ -103,7 +124,7 @@ export function HapusPertemuan({
             disabled={pending}
           >
             {pending ? <Loader2Icon className="animate-spin" /> : null}
-            Hapus
+            {adaData ? "Hapus semua" : "Hapus"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

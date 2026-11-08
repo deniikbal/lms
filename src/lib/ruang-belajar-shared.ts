@@ -310,6 +310,8 @@ export type PertemuanRow = {
   googleEventId: string | null;
   lampiranNama: string | null;
   lampiranUrl: string | null;
+  /** Whether the meeting has written material to read. */
+  adaMateri: boolean;
   /** Already formatted HH:MM for display. */
   presensiBuka: string | null;
   presensiTutup: string | null;

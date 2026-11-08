@@ -177,6 +177,7 @@ export async function listPertemuan(
     google_event_id: string | null;
     lampiran_nama: string | null;
     lampiran_url: string | null;
+    ada_materi: boolean;
     presensi_buka: string | null;
     presensi_tutup: string | null;
     presensi_dibuka: boolean;
@@ -195,6 +196,7 @@ export async function listPertemuan(
             p.google_event_id,
             p.lampiran_nama,
             p.lampiran_url,
+            (p.materi is not null and btrim(p.materi) <> '') as ada_materi,
             to_char(p.presensi_buka at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_buka,
             to_char(p.presensi_tutup at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_tutup,
             coalesce(now() between p.presensi_buka and p.presensi_tutup, false) as presensi_dibuka,
@@ -224,6 +226,7 @@ export async function listPertemuan(
     googleEventId: row.google_event_id,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
+    adaMateri: row.ada_materi,
     presensiBuka: row.presensi_buka,
     presensiTutup: row.presensi_tutup,
     presensiDibuka: row.presensi_dibuka,
@@ -719,6 +722,7 @@ export async function getPertemuanDetail(
             p.google_event_id,
             p.lampiran_nama,
             p.lampiran_url,
+            (p.materi is not null and btrim(p.materi) <> '') as ada_materi,
             to_char(p.presensi_buka at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_buka,
             to_char(p.presensi_tutup at time zone 'Asia/Jakarta', 'HH24:MI') as presensi_tutup,
             coalesce(now() between p.presensi_buka and p.presensi_tutup, false) as presensi_dibuka
@@ -1085,15 +1089,21 @@ export async function tambahPertemuan({
 export async function hapusPertemuan({
   ruangId,
   pertemuanId,
+  paksa = false,
 }: {
   ruangId: number;
   pertemuanId: number;
+  /**
+   * Skip the "no attendance yet" guard. The teacher meant to wipe the meeting
+   * including its attendance and completion marks; the DB cascades both.
+   */
+  paksa?: boolean;
 }): Promise<Hasil> {
   const { rowCount } = await pool.query(
     `delete from pertemuan
       where id = $1 and ruang_id = $2
-        and not exists (select 1 from presensi where pertemuan_id = $1)`,
-    [pertemuanId, ruangId],
+        and ($3::boolean or not exists (select 1 from presensi where pertemuan_id = $1))`,
+    [pertemuanId, ruangId, paksa],
   );
 
   if (!rowCount) {
