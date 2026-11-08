@@ -79,7 +79,7 @@ export async function RuangShell({
         that answers "which class is this?" sits inside the same frame as the
         navigation, instead of a loose heading followed by a second loose strip.
       */}
-      <div className="overflow-hidden rounded-xl border border-indigo-500/25 bg-card shadow-sm dark:border-indigo-400/25">
+      <div className="overflow-hidden rounded-sm border border-indigo-500/25 bg-card shadow-sm dark:border-indigo-400/25">
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1 space-y-1.5">
@@ -191,7 +191,7 @@ function Info({
 }) {
   const tone = WARNA_INFO[warna];
   return (
-    <div className={cn("rounded-lg border px-2.5 py-1.5", tone.kotak)}>
+    <div className={cn("rounded-sm border px-2.5 py-1.5", tone.kotak)}>
       <dt className="flex items-center gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase">
         <span className={tone.ikon}>{ikon}</span>
         {label}

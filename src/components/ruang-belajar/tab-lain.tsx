@@ -74,7 +74,7 @@ export function TabTugas({
         Two shapes for one list: a real table on ≥sm, stacked cards on a phone —
         a 4-column table never fits 360px without a sideways scroll.
       */}
-      <div className="hidden overflow-hidden rounded-xl border border-border/70 bg-card sm:block">
+      <div className="hidden overflow-hidden rounded-sm border border-border/70 bg-card sm:block">
         <Table>
           <TableHeader>
             <TableRow className="border-border/60 hover:bg-transparent">
@@ -116,7 +116,7 @@ export function TabTugas({
                       <span className="inline-flex flex-wrap items-center gap-1.5">
                         <span
                           className={cn(
-                            "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                            "inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
                             TONE[status.tone],
                           )}
                         >
@@ -125,11 +125,11 @@ export function TabTugas({
                         {milik?.nilai !== null && milik?.nilai !== undefined ? (
                           <span
                             className={cn(
-                              "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
+                              "inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
                               TONE.biru,
                             )}
                           >
-                            Nilai {milik.nilai}
+                            Sudah dinilai
                           </span>
                         ) : null}
                       </span>
@@ -145,7 +145,7 @@ export function TabTugas({
                       <div className="flex items-center gap-1">
                         <span
                           className={cn(
-                            "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                            "inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
                             item.terbit ? TONE.hijau : TONE.kuning,
                           )}
                         >
@@ -215,7 +215,7 @@ export function TabTugas({
           return (
             <div
               key={item.id}
-              className="space-y-2 rounded-xl border border-border/70 bg-card p-3"
+              className="space-y-2 rounded-sm border border-border/70 bg-card p-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <Link
@@ -226,7 +226,7 @@ export function TabTugas({
                 </Link>
                 <span
                   className={cn(
-                    "inline-flex shrink-0 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                    "inline-flex shrink-0 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
                     TONE[status.tone],
                   )}
                 >
@@ -246,18 +246,18 @@ export function TabTugas({
                 {siswa ? (
                   <span className="flex flex-wrap items-center gap-1.5">
                     {milik?.dikumpulkan ? (
-                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.hijau)}>
+                      <span className={cn("inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.hijau)}>
                         Terkumpul
                       </span>
                     ) : null}
                     {milik?.terlambat ? (
-                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.merah)}>
+                      <span className={cn("inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.merah)}>
                         Terlambat
                       </span>
                     ) : null}
                     {milik?.nilai !== null && milik?.nilai !== undefined ? (
-                      <span className={cn("inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums", TONE.biru)}>
-                        Nilai {milik.nilai}
+                      <span className={cn("inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1", TONE.biru)}>
+                        Sudah dinilai
                       </span>
                     ) : null}
                   </span>
@@ -272,7 +272,7 @@ export function TabTugas({
                   <div className="flex items-center gap-1">
                     <span
                       className={cn(
-                        "inline-flex rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+                        "inline-flex rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
                         item.terbit ? TONE.hijau : TONE.kuning,
                       )}
                     >
@@ -343,7 +343,7 @@ export function TabPresensi({
       judul="Matriks presensi"
       keterangan={`${siswa.length} siswa · ${pertemuan.length} pertemuan`}
     >
-      <div className="overflow-x-auto rounded-xl border border-border/70 bg-card">
+      <div className="overflow-x-auto rounded-sm border border-border/70 bg-card">
         <Table>
           <TableHeader>
             <TableRow className="border-border/60 hover:bg-transparent">
@@ -387,7 +387,7 @@ export function TabPresensi({
                         {nilai ? (
                           <span
                             className={cn(
-                              "inline-grid size-6 place-items-center rounded-md text-[0.7rem] font-semibold ring-1",
+                              "inline-grid size-6 place-items-center rounded-sm text-[0.7rem] font-semibold ring-1",
                               TONE[STATUS_PRESENSI[nilai].tone],
                             )}
                             title={STATUS_PRESENSI[nilai].label}
@@ -441,7 +441,7 @@ export function TabNilai({
       judul="Rapor ruang"
       keterangan={`Bobot tugas ${bobot.tugas}% · kuis ${bobot.kuis}% · kehadiran ${bobot.kehadiran}%`}
     >
-      <div className="overflow-hidden rounded-xl border border-border/70 bg-card">
+      <div className="overflow-hidden rounded-sm border border-border/70 bg-card">
         <Table>
           <TableHeader>
             <TableRow className="border-border/60 hover:bg-transparent">
@@ -516,7 +516,7 @@ export function TabDiskusi({
           {diskusi.map((item) => (
             <li
               key={item.id}
-              className="rounded-xl border border-border/70 bg-card px-4 py-3"
+              className="rounded-sm border border-border/70 bg-card px-4 py-3"
             >
               <div className="flex items-center gap-2">
                 <span className="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-[0.6rem] font-semibold text-muted-foreground">
@@ -562,7 +562,7 @@ export function TabAnggota({
         ].map((item) => (
           <div
             key={item.label}
-            className="rounded-xl border border-border/70 bg-card px-4 py-3"
+            className="rounded-sm border border-border/70 bg-card px-4 py-3"
           >
             <p className="text-xs text-muted-foreground">{item.label}</p>
             <p className="mt-0.5 text-sm font-medium text-foreground">
@@ -580,7 +580,7 @@ export function TabAnggota({
             {anggota.map((murid) => (
               <li
                 key={murid.id}
-                className="flex items-center gap-2.5 rounded-lg border border-border/70 bg-card px-3 py-2"
+                className="flex items-center gap-2.5 rounded-sm border border-border/70 bg-card px-3 py-2"
               >
                 <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[0.65rem] font-semibold text-muted-foreground">
                   {inisial(murid.nama)}

@@ -639,7 +639,8 @@ export async function listDiskusi(ruangId: number): Promise<DiskusiRow[]> {
     dibuat: string;
   }>(
     `select d.id, d.isi, u.name as penulis, u.role as peran,
-            to_char(d.created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as dibuat
+            to_char(d.created_at at time zone 'Asia/Jakarta',
+                    'YYYY-MM-DD"T"HH24:MI:SS') as dibuat
        from diskusi d
        join "user" u on u.id = d.siswa_id
       where d.ruang_id = $1
