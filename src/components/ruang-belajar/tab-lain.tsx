@@ -42,6 +42,21 @@ function ruangIdOf(base: string): number {
   return Number(base.split("/").pop());
 }
 
+/**
+ * "3/5 kelompok terkumpul" for a group task, "12/42 terkumpul" otherwise.
+ *
+ * `terkumpul` counts groups for a group task but students for an individual
+ * one, so the denominator has to follow the same unit — dividing by the class
+ * size read as "1/42" when one of two groups had handed work in.
+ */
+function labelTerkumpul(item: TugasRow, jumlahSiswa: number): string {
+  const kelompok = item.tipeKerja === "kelompok";
+  const unit = kelompok ? "kelompok " : "";
+  const total = kelompok ? item.jumlahKelompok : jumlahSiswa;
+  const dinilai = item.dinilai > 0 ? ` · ${item.dinilai} dinilai` : "";
+  return `${item.terkumpul}/${total} ${unit}terkumpul${dinilai}`;
+}
+
 // --------------------------------------------------------------------- tugas
 
 export function TabTugas({
@@ -135,8 +150,7 @@ export function TabTugas({
                       </span>
                     ) : (
                       <span className="text-sm text-muted-foreground tabular-nums">
-                        {item.terkumpul}/{jumlahSiswa} terkumpul
-                        {item.dinilai > 0 ? ` · ${item.dinilai} dinilai` : ""}
+                        {labelTerkumpul(item, jumlahSiswa)}
                       </span>
                     )}
                   </TableCell>
@@ -263,8 +277,7 @@ export function TabTugas({
                   </span>
                 ) : (
                   <span className="text-xs text-muted-foreground tabular-nums">
-                    {item.terkumpul}/{jumlahSiswa} terkumpul
-                    {item.dinilai > 0 ? ` · ${item.dinilai} dinilai` : ""}
+                    {labelTerkumpul(item, jumlahSiswa)}
                   </span>
                 )}
 

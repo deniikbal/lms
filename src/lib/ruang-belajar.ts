@@ -255,6 +255,7 @@ export async function listTugas(
     tenggat: string | null;
     terkumpul: number;
     dinilai: number;
+    jumlah_kelompok: number;
     lampiran_nama: string | null;
     lampiran_url: string | null;
     deskripsi: string | null;
@@ -273,6 +274,9 @@ export async function listTugas(
             to_char(t.tenggat at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as tenggat,
             t.lampiran_nama,
             t.lampiran_url,
+            -- A group task files one answer per group, so both counters count
+            -- groups; an individual task counts students. The unit differs,
+            -- which is why the caller needs the denominator that matches.
             (select count(distinct coalesce('k' || p.kelompok_id, p.siswa_id))::int
                from pengumpulan p
               where p.tugas_id = t.id
@@ -281,6 +285,8 @@ export async function listTugas(
                from pengumpulan p
               where p.tugas_id = t.id and p.nilai is not null
                 and (p.teks is not null or p.file_url is not null)) as dinilai,
+            (select count(*)::int from kelompok_tugas k
+              where k.tugas_id = t.id) as jumlah_kelompok,
             exists(select 1 from pengumpulan p
                     where p.tugas_id = t.id
                       and (p.teks is not null or p.file_url is not null)
@@ -340,6 +346,7 @@ export async function listTugas(
     tenggat: row.tenggat,
     terkumpul: row.terkumpul,
     dinilai: row.dinilai,
+    jumlahKelompok: row.jumlah_kelompok,
     lampiranNama: row.lampiran_nama,
     lampiranUrl: row.lampiran_url,
     deskripsi: row.deskripsi,
@@ -1892,9 +1899,17 @@ export async function simpanPengumpulan({
       [tugasId, row.kelompok_id, teks, fileUrl],
     );
     if (!rowCount) {
+      // Two members can open the form and upload at the same moment; without
+      // the conflict clause the loser hit the unique index and got a bare 500.
+      // An existing row belongs to the same group and the same task, so
+      // updating it on conflict is the same outcome the update above wanted.
       await pool.query(
         `insert into pengumpulan (tugas_id, siswa_id, teks, file_url, kelompok_id)
-         values ($1, $2, $3, $4, $5)`,
+         values ($1, $2, $3, $4, $5)
+         on conflict (tugas_id, coalesce('k' || kelompok_id, siswa_id))
+         do update set teks = coalesce(excluded.teks, pengumpulan.teks),
+                       file_url = coalesce(excluded.file_url, pengumpulan.file_url),
+                       dikumpulkan_at = now()`,
         [tugasId, siswaId, teks, fileUrl, row.kelompok_id],
       );
     }

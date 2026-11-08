@@ -339,8 +339,12 @@ export type TugasRow = {
   bolehTerlambat: boolean;
   /** Formatted `4 Nov 2026 23.59`, or null when there is no deadline. */
   tenggat: string | null;
+  /** Answers in: students for an individual task, groups for a group task. */
   terkumpul: number;
+  /** Same unit as `terkumpul`. */
   dinilai: number;
+  /** How many groups the task has; 0 for an individual task. */
+  jumlahKelompok: number;
   /** Optional PDF the teacher attached (Drive). */
   lampiranNama: string | null;
   lampiranUrl: string | null;
