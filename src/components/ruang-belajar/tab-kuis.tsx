@@ -76,7 +76,7 @@ function KartuKuis({
     <li>
       <div
         className={cn(
-          "group relative overflow-hidden rounded-xl border border-border bg-card shadow-sm",
+          "group relative overflow-hidden rounded-sm border border-border bg-card shadow-sm",
           "transition-colors hover:bg-muted/20",
         )}
       >
@@ -87,7 +87,7 @@ function KartuKuis({
         <div className="flex items-start gap-3 pl-4 pr-3 py-3">
           <span
             className={cn(
-              "mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border",
+              "mt-0.5 grid size-9 shrink-0 place-items-center rounded-sm border",
               warna.kotak,
             )}
           >
@@ -106,7 +106,7 @@ function KartuKuis({
               </Link>
               <span
                 className={cn(
-                  "shrink-0 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
+                  "shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
                   TONE[lencana.tone],
                 )}
               >

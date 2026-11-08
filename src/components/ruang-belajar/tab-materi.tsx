@@ -55,7 +55,7 @@ function Chip({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
+        "inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1",
         TONE[tone],
       )}
     >
@@ -76,7 +76,7 @@ function Kotak({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-sm border border-border bg-card shadow-sm">
       <h2 className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-xs font-medium text-foreground">
         <span className="text-muted-foreground">{ikon}</span>
         {judul}
@@ -112,7 +112,7 @@ export function TabMateri({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-foreground">Materi</h2>
-          <span className="rounded-md bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground tabular-nums ring-1 ring-border">
+          <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-muted-foreground tabular-nums ring-1 ring-border">
             {pertemuan.length} pertemuan
           </span>
         </div>
@@ -138,7 +138,7 @@ export function TabMateri({
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-2">
           {pertemuan.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+            <div className="rounded-sm border border-dashed border-border px-6 py-14 text-center">
               <ListVideoIcon className="mx-auto size-6 text-muted-foreground/60" />
               <p className="mt-2 text-sm text-muted-foreground">
                 {peran === "siswa"
@@ -195,7 +195,7 @@ export function TabMateri({
                         href={slot.linkMeet}
                         target="_blank"
                         rel="noreferrer noopener"
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs text-foreground transition-colors hover:bg-muted"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-border px-2 py-1 text-xs text-foreground transition-colors hover:bg-muted"
                       >
                         <VideoIcon className="size-3" />
                         Gabung
@@ -257,7 +257,7 @@ function KartuPertemuan({
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-[box-shadow,opacity] hover:shadow-md",
+        "relative overflow-hidden rounded-sm border border-border bg-card shadow-sm transition-[box-shadow,opacity] hover:shadow-md",
         redup && "opacity-70 hover:opacity-100",
       )}
     >
@@ -270,7 +270,7 @@ function KartuPertemuan({
       />
 
       <div className="flex items-start gap-3 py-3 pr-3 pl-3.5">
-        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-muted font-mono text-[0.7rem] font-medium text-muted-foreground tabular-nums">
+        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-sm bg-muted font-mono text-[0.7rem] font-medium text-muted-foreground tabular-nums">
           {String(pertemuan.urutan).padStart(2, "0")}
         </span>
 
@@ -350,7 +350,7 @@ function KartuPertemuan({
                 target="_blank"
                 rel="noreferrer noopener"
                 className={cn(
-                  "relative inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
+                  "relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
                   TONE.biru,
                 )}
                 title={url}
@@ -368,7 +368,7 @@ function KartuPertemuan({
                 target="_blank"
                 rel="noreferrer noopener"
                 className={cn(
-                  "relative inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
+                  "relative inline-flex max-w-full items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
                   TONE.netral,
                 )}
               >
