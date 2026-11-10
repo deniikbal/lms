@@ -2065,7 +2065,7 @@ export async function simpanPengumpulan({
   await pool.query(
     `insert into pengumpulan (tugas_id, siswa_id, teks, file_url)
      values ($1, $2, $3, $4)
-     on conflict (tugas_id, siswa_id)
+     on conflict (tugas_id, coalesce('k' || kelompok_id, siswa_id))
      do update set teks = coalesce(excluded.teks, pengumpulan.teks),
                    file_url = coalesce(excluded.file_url, pengumpulan.file_url),
                    dikumpulkan_at = now()`,
@@ -2176,7 +2176,7 @@ export async function simpanNilaiTugas({
            from unnest($2::text[], $3::int[]) as v(siswa_id, nilai)
            join "user" u on u.id = v.siswa_id
           where u.role = 'siswa' and u.aktif and u.kelas_id = $4
-         on conflict (tugas_id, siswa_id)
+         on conflict (tugas_id, coalesce('k' || kelompok_id, siswa_id))
          do update set nilai = excluded.nilai`,
         [tugasId, isiSiswa.map((i) => i.siswaId), isiSiswa.map((i) => i.nilai), kelasId],
       );
