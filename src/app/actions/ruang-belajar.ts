@@ -1038,6 +1038,18 @@ export async function kirimTugasAction(input: {
     return { error: "Maksimal 10 berkas per pengumpulan." };
   }
 
+  // The client already compresses and refuses oversize files; this re-check
+  // exists for the direct-API path. Total payload matters too — Vercel cuts
+  // the request at 4.5 MB before this code ever runs, so the sum is what the
+  // guard watches, not each file alone.
+  const totalByte = daftar.reduce((jumlah, berkas) => jumlah + berkas.size, 0);
+  if (totalByte > 4.2 * 1024 * 1024) {
+    return {
+      error:
+        "Ukuran total berkas melebihi batas. Padatkan foto atau kirim berkas lebih kecil.",
+    };
+  }
+
   let fileUrl: string | null = null;
   if (daftar.length > 0) {
     const tugas = await getTugasDetail(ruangId, tugasId);
@@ -1045,7 +1057,7 @@ export async function kirimTugasAction(input: {
 
     for (const berkas of daftar) {
       if (berkas.size > BATAS_BERKAS) {
-        return { error: `"${berkas.name}" terlalu besar (maks. 10 MB).` };
+        return { error: `"${berkas.name}" terlalu besar (maks. 4 MB per berkas).` };
       }
       if (!MIME_DIIZINKAN.includes(berkas.type)) {
         return { error: `"${berkas.name}" harus foto (JPG/PNG/WebP) atau PDF.` };

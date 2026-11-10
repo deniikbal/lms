@@ -7,7 +7,7 @@ import { CameraIcon, CheckIcon, ImageIcon, Loader2Icon, PlusIcon, SendIcon, XIco
 import { kirimTugasAction } from "@/app/actions/ruang-belajar";
 import { PratinjauBerkas } from "@/components/ruang-belajar/pratinjau-berkas";
 import { TONE } from "@/components/ruang-belajar/tone";
-import { kompresSemua } from "@/lib/kompres-gambar";
+import { kompresGambar, cekUkuran } from "@/lib/kompres-gambar";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -22,7 +22,12 @@ import {
 
 /** Mirrors `MIME_DIIZINKAN` in `lib/drive.ts` — the browser hint, not the rule. */
 const TERIMA = "image/jpeg,image/png,image/webp,image/heic,application/pdf";
-const BATAS_MB = 10;
+/**
+ * The advertised cap. Vercel kills any Server Action request above 4.5 MB, so
+ * a photo the student thinks is "10 MB ok" would die invisibly after a long
+ * upload. 4 MB is the honest number the compression loop aims for.
+ */
+const BATAS_MB = 4;
 
 /** The student's answer box: typed text, an uploaded photo/PDF, or both. */
 export function FormPengumpulan({
@@ -53,11 +58,27 @@ export function FormPengumpulan({
     // Compress before listing, so sizes shown are the ones that will upload.
     setMemampatkan(true);
     try {
-      const ringan = await kompresSemua(Array.from(daftar));
-      setBerkas((lama) =>
-        [...lama, ...ringan.map((file) => ({ id: berikutnya, file }))].slice(0, 10),
-      );
-      setBerikutnya((n) => n + ringan.length);
+      // One at a time, so a single bad file reports itself instead of failing
+      // the whole batch silently.
+      const diterima: { id: number; file: File }[] = [];
+      const gagal: string[] = [];
+      for (const asli of Array.from(daftar)) {
+        const file = await kompresGambar(asli);
+        const masalah = cekUkuran(file);
+        if (masalah) {
+          gagal.push(masalah);
+        } else {
+          diterima.push({ id: berikutnya + diterima.length, file });
+        }
+      }
+      if (gagal.length > 0) setError(gagal.join(" "));
+      if (diterima.length > 0) {
+        setBerkas((lama) => [...lama, ...diterima].slice(0, 10));
+        setBerikutnya((n) => n + diterima.length);
+        if (gagal.length > 0) {
+          setPesan(`${diterima.length} berkas lainnya tetap ditambahkan.`);
+        }
+      }
     } finally {
       setMemampatkan(false);
     }

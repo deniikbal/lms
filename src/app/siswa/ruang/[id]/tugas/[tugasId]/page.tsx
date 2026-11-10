@@ -11,6 +11,13 @@ import {
 } from "@/lib/ruang-belajar";
 import { requireRole } from "@/lib/session";
 
+/**
+ * Room for the Drive round-trips a submission needs (token, folder lookups,
+ * upload, share). The Vercel default of 10 s for hobby / 15 s fluid is what
+ * makes a big upload die with "This page couldn't load" instead of finishing.
+ */
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: "Tugas · LMS Sekolah",
 };

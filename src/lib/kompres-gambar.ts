@@ -18,6 +18,16 @@ const KUALITAS = 0.8;
 /** Files at or below this size skip re-encoding entirely. */
 const LEWAT_BYTE = 512 * 1024;
 
+/**
+ * Hard ceiling every upload must land under. Vercel rejects Server Action
+ * bodies above 4.5 MB at the infrastructure level — before Next.js can show
+ * its own friendly limit error — so a too-big photo surfaces as the generic
+ * "This page couldn't load" after a long upload. Anything the compression
+ * loop cannot bring under this size is rejected client-side with a clear
+ * message instead.
+ */
+export const BATAS_UNGGAH_BYTE = 4 * 1024 * 1024;
+
 async function muatGambar(file: File): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(file);
   try {
@@ -42,8 +52,12 @@ async function muatGambar(file: File): Promise<HTMLImageElement> {
 export async function kompresGambar(file: File): Promise<File> {
   const gambar = file.type.startsWith("image/");
   const heic = /heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name);
-  // HEIC decodes only on Safari; trying elsewhere would fail and fall back.
-  if (!gambar || heic || file.size <= LEWAT_BYTE) return file;
+  // HEIC is NOT skipped: iPhone cameras hand out HEIC by default and the
+  // camera button on iOS Safari is exactly where students submit from. Safari
+  // decodes HEIC onto the canvas fine; on other browsers the decode fails and
+  // the catch below returns the original, so nothing regresses where it did
+  // not work before.
+  if (!gambar || file.size <= LEWAT_BYTE) return file;
 
   try {
     const img = await muatGambar(file);
@@ -78,4 +92,19 @@ export async function kompresGambar(file: File): Promise<File> {
 /** Compress a whole selection, keeping order. */
 export async function kompresSemua(files: File[]): Promise<File[]> {
   return Promise.all(files.map(kompresGambar));
+}
+
+/**
+ * Human-readable check that a compressed file is actually uploadable.
+ * Returns null when fine, or the message to show the student. PDFs larger
+ * than the ceiling cannot be shrunk client-side, so the student is told to
+ * scan lighter or send fewer pages.
+ */
+export function cekUkuran(file: File): string | null {
+  if (file.size <= BATAS_UNGGAH_BYTE) return null;
+  const mb = (file.size / (1024 * 1024)).toFixed(1);
+  const pdf = file.type === "application/pdf";
+  return pdf
+    ? `PDF "${file.name}" ${mb} MB melebihi batas 4 MB. Pindai ulang dengan resolusi lebih rendah atau kirim beberapa berkas.`
+    : `Foto "${file.name}" (${mb} MB) tetap melebihi batas 4 MB setelah dipadatkan. Coba foto dengan pencahayaan lebih baik atau potong bagian yang tidak perlu.`;
 }

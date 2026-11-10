@@ -13,6 +13,9 @@ import {
 } from "@/lib/ruang-belajar";
 import { requireRole } from "@/lib/session";
 
+/** Submission sheets can trigger Drive deletes; give them room. */
+export const maxDuration = 60;
+
 export const metadata: Metadata = {
   title: "Pengumpulan tugas · LMS Sekolah",
 };
