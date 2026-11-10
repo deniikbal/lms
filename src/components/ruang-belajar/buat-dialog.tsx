@@ -6,8 +6,8 @@ import { Loader2Icon, PlusIcon } from "lucide-react";
 
 import {
   tambahKuisAction,
-  tambahPertemuanAction,
-  tambahTugasAction,
+  tambahPertemuanBanyakAction,
+  tambahTugasBanyakAction,
   ubahPertemuanAction,
   ubahTugasAction,
 } from "@/app/actions/ruang-belajar";
@@ -34,6 +34,9 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 export type JenisBuat = "pertemuan" | "tugas" | "kuis";
+
+/** A parallel class the same material/task can be copied to. */
+export type KelasSejenis = { id: number; kelasNama: string };
 
 /** Pre-filled values when the same dialog is used to edit an existing meeting. */
 export type PertemuanEdit = {
@@ -103,12 +106,15 @@ export function BuatDialog({
   jenis,
   pertemuan,
   tugas,
+  kelasLain = [],
   pemicu,
 }: {
   ruangId: number;
   jenis: JenisBuat;
   pertemuan?: PertemuanEdit;
   tugas?: TugasEdit;
+  /** Parallel classes offered when creating (not editing) materi/tugas. */
+  kelasLain?: KelasSejenis[];
   pemicu?: React.ReactElement;
 }) {
   const router = useRouter();
@@ -146,6 +152,16 @@ export function BuatDialog({
   const [selesai, setSelesai] = useState("");
   const [durasi, setDurasi] = useState("60");
 
+  /** Parallel classes ticked in the "apply to other classes" section. */
+  const [kelasDipilih, setKelasDipilih] = useState<number[]>([]);
+  const bisaMulti = !pertemuan && !tugas && (jenis === "pertemuan" || jenis === "tugas") && kelasLain.length > 0;
+
+  function toggleKelas(idKelas: number) {
+    setKelasDipilih((lama) =>
+      lama.includes(idKelas) ? lama.filter((x) => x !== idKelas) : [...lama, idKelas],
+    );
+  }
+
   const tipeItems: Record<string, React.ReactNode> = {
     file: "Hanya file",
     teks: "Hanya teks",
@@ -177,6 +193,7 @@ export function BuatDialog({
     setMulai("");
     setSelesai("");
     setDurasi("60");
+    setKelasDipilih([]);
     setError(null);
   }
 
@@ -200,7 +217,7 @@ export function BuatDialog({
             hapusLampiran: hapusLampiran && !lampiran,
           })
         : jenis === "pertemuan"
-          ? await tambahPertemuanAction({
+          ? await tambahPertemuanBanyakAction({
               ruangId,
               judul,
               tanggal,
@@ -211,6 +228,7 @@ export function BuatDialog({
               presensiBuka,
               presensiTutup,
               lampiran,
+              ruangTambahan: kelasDipilih,
             })
           : jenis === "tugas"
             ? tugas
@@ -228,7 +246,7 @@ export function BuatDialog({
                   tipeKerja,
                   nilaiSama,
                 })
-              : await tambahTugasAction({
+              : await tambahTugasBanyakAction({
                   ruangId,
                   judul,
                   deskripsi: deskripsiTugas,
@@ -239,6 +257,7 @@ export function BuatDialog({
                   lampiran,
                   tipeKerja,
                   nilaiSama,
+                  ruangTambahan: kelasDipilih,
                 })
             : await tambahKuisAction({
                 ruangId,
@@ -616,6 +635,55 @@ export function BuatDialog({
                 />
               </div>
             </>
+          ) : null}
+
+          {bisaMulti ? (
+            <div className="space-y-1.5 rounded-lg border border-border/70 px-3 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <span className="block text-sm text-foreground">
+                    Buat juga untuk kelas lain
+                  </span>
+                  <span className="block text-[0.7rem] text-muted-foreground">
+                    Materi/tugas yang sama disalin ke kelas paralel yang Anda ampu dengan mapel yang sama.
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 text-xs"
+                  onClick={() =>
+                    setKelasDipilih(
+                      kelasDipilih.length === kelasLain.length ? [] : kelasLain.map((k) => k.id),
+                    )
+                  }
+                >
+                  {kelasDipilih.length === kelasLain.length ? "Kosongkan" : "Pilih semua"}
+                </Button>
+              </div>
+              <div className="grid gap-1 sm:grid-cols-2">
+                {kelasLain.map((kelas) => (
+                  <label
+                    key={kelas.id}
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-sm text-foreground transition-colors hover:bg-muted/60"
+                  >
+                    <input
+                      type="checkbox"
+                      className="size-4 accent-indigo-600"
+                      checked={kelasDipilih.includes(kelas.id)}
+                      onChange={() => toggleKelas(kelas.id)}
+                    />
+                    {kelas.kelasNama}
+                  </label>
+                ))}
+              </div>
+              {kelasDipilih.length > 0 ? (
+                <p className="text-[0.7rem] text-muted-foreground">
+                  Akan dibuat di {kelasDipilih.length + 1} ruang (termasuk ruang ini).
+                </p>
+              ) : null}
+            </div>
           ) : null}
 
           <label className="flex items-center justify-between gap-3 rounded-lg border border-border/70 px-3 py-2">

@@ -1020,6 +1020,152 @@ export async function listTugasMenunggu(
   }));
 }
 
+// --------------------------------------------------- tulis ke banyak ruang
+
+/**
+ * The other rooms of the same teacher in the same subject and school year —
+ * the classes a "create for several classes" dialog can offer. The current
+ * room is excluded; parallel rooms without a subject match nothing.
+ */
+export async function listRuangSejenis(
+  ruangId: number,
+  guruId: string,
+): Promise<{ id: number; kelasNama: string }[]> {
+  const { rows } = await pool.query<{ id: number; kelas_nama: string }>(
+    `select r.id, k.nama as kelas_nama
+       from ruang r
+       join kelas k on k.id = r.kelas_id
+      where r.guru_id = $2
+        and r.mapel_id = (select mapel_id from ruang where id = $1)
+        and r.tahun_ajaran_id is not distinct
+              from (select tahun_ajaran_id from ruang where id = $1)
+        and r.id <> $1
+      order by k.nama asc`,
+    [ruangId, guruId],
+  );
+  return rows.map((row) => ({ id: row.id, kelasNama: row.kelas_nama }));
+}
+
+/**
+ * Creates the same meeting in every room of the list, inside one transaction.
+ *
+ * The room order in `ruangIds` fixes the `urutan` tie-break: rooms created in
+ * the same instant keep a stable, deterministic sequence per class.
+ */
+export async function tambahPertemuanBanyak(
+  ruangIds: number[],
+  isi: {
+    judul: string;
+    tanggal: string;
+    terbit: boolean;
+    materi: string | null;
+    videoUrl: string | null;
+    lampiranNama: string | null;
+    lampiranUrl: string | null;
+    presensiBuka: string | null;
+    presensiTutup: string | null;
+  },
+): Promise<Hasil> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    for (const ruangId of ruangIds) {
+      const { rows } = await client.query<{ next: number }>(
+        `select coalesce(max(urutan), 0) + 1 as next from pertemuan where ruang_id = $1`,
+        [ruangId],
+      );
+      await client.query(
+        `insert into pertemuan
+           (ruang_id, urutan, judul, tanggal, terbit, materi, video_url,
+            lampiran_nama, lampiran_url, presensi_buka, presensi_tutup)
+         values ($1, $2, $3, $4::date, $5, $6, $7, $8, $9,
+                 case when $10::text is null then null
+                      else ($4::date + $10::time) at time zone 'Asia/Jakarta' end,
+                 case when $11::text is null then null
+                      else ($4::date + $11::time) at time zone 'Asia/Jakarta' end)`,
+        [
+          ruangId,
+          rows[0].next,
+          isi.judul,
+          isi.tanggal,
+          isi.terbit,
+          isi.materi,
+          isi.videoUrl,
+          isi.lampiranNama,
+          isi.lampiranUrl,
+          isi.presensiBuka,
+          isi.presensiTutup,
+        ],
+      );
+    }
+    await client.query("commit");
+    return { ok: true };
+  } catch (galat) {
+    await client.query("rollback");
+    console.error(galat);
+    return { ok: false, error: "Gagal menyimpan pertemuan. Coba lagi." };
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Creates the same task in every room of the list, inside one transaction.
+ * All-or-nothing: a failure in the last room rolls the first room back, so no
+ * class is left with a task its siblings never got.
+ */
+export async function tambahTugasBanyak(
+  ruangIds: number[],
+  isi: {
+    judul: string;
+    deskripsi: string | null;
+    tenggat: string | null;
+    tipe: "file" | "teks" | "keduanya";
+    bolehTerlambat: boolean;
+    terbit: boolean;
+    lampiranNama: string | null;
+    lampiranUrl: string | null;
+    tipeKerja: "individu" | "kelompok";
+    nilaiSama: boolean;
+  },
+): Promise<Hasil> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    for (const ruangId of ruangIds) {
+      await client.query(
+        `insert into tugas (ruang_id, judul, deskripsi, tenggat, tipe, boleh_terlambat, terbit,
+                            lampiran_nama, lampiran_url, tipe_kerja, nilai_sama)
+         values ($1, $2, $3,
+                 case when $4::text is null then null
+                      else ($4::text)::timestamp at time zone 'Asia/Jakarta' end,
+                 $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          ruangId,
+          isi.judul,
+          isi.deskripsi,
+          isi.tenggat,
+          isi.tipe,
+          isi.bolehTerlambat,
+          isi.terbit,
+          isi.lampiranNama,
+          isi.lampiranUrl,
+          isi.tipeKerja,
+          isi.nilaiSama,
+        ],
+      );
+    }
+    await client.query("commit");
+    return { ok: true };
+  } catch (galat) {
+    await client.query("rollback");
+    console.error(galat);
+    return { ok: false, error: "Gagal menyimpan tugas. Coba lagi." };
+  } finally {
+    client.release();
+  }
+}
+
 // ------------------------------------------------------------------ mutations
 
 export type Hasil = { ok: true } | { ok: false; error: string };

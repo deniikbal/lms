@@ -28,6 +28,7 @@ import {
   listDiskusi,
   listKuis,
   listPertemuan,
+  listRuangSejenis,
   listTugas,
 } from "@/lib/ruang-belajar";
 import {
@@ -58,6 +59,11 @@ export async function RuangShell({
   daftarHref: string;
   userId: string;
 }) {
+  // Parallel classes for the "create for several classes" option — only worth
+  // querying when the visitor can actually create anything.
+  const sejenis = bolehUbah(peran)
+    ? await listRuangSejenis(ruang.id, userId)
+    : [];
   return (
     <div className="space-y-4">
       <nav
@@ -102,8 +108,8 @@ export async function RuangShell({
 
             {bolehUbah(peran) ? (
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <BuatDialog ruangId={ruang.id} jenis="pertemuan" />
-                <BuatDialog ruangId={ruang.id} jenis="tugas" />
+                <BuatDialog ruangId={ruang.id} jenis="pertemuan" kelasLain={sejenis} />
+                <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
                 <BuatDialog ruangId={ruang.id} jenis="kuis" />
               </div>
             ) : null}

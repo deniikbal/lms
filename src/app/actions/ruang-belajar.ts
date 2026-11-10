@@ -11,6 +11,7 @@ import {
   kirimDiskusi,
   bolehUbah,
   listKelompok,
+  listRuangSejenis,
   simpanMeet,
   simpanMateri,
   simpanNilaiTugas,
@@ -24,7 +25,9 @@ import {
   hapusTugas,
   tambahKuis,
   tambahPertemuan,
+  tambahPertemuanBanyak,
   tambahTugas,
+  tambahTugasBanyak,
   ubahPertemuan,
   type KelompokRow,
   type StatusPresensi,
@@ -288,6 +291,93 @@ export async function tambahPertemuanAction(input: {
   return { error: null };
 }
 
+/**
+ * Creates one meeting in the current room and, when requested, copies it to
+ * parallel rooms (same teacher, same subject, same school year).
+ *
+ * Google Meet stays single-room on purpose: the calendar slot is tied to this
+ * class's schedule, and a shared meeting link across classes invites chaos.
+ */
+export async function tambahPertemuanBanyakAction(input: {
+  ruangId: number;
+  judul: string;
+  tanggal: string;
+  terbit: boolean;
+  buatMeet?: boolean;
+  materi?: string | null;
+  videoUrl?: string | null;
+  presensiBuka?: string | null;
+  presensiTutup?: string | null;
+  lampiran?: File | null;
+  /** Other room ids the same content is copied to. */
+  ruangTambahan?: number[];
+}): Promise<HasilAksi> {
+  const ruangId = id(input.ruangId);
+  if (!ruangId) return { error: "Ruang belajar tidak ditemukan." };
+
+  const { user, akses, boleh } = await siapkan(ruangId);
+  if (!akses) return { error: "Anda tidak punya akses ke ruang ini." };
+  if (!boleh) return { error: "Hanya guru pengampu yang bisa menambah pertemuan." };
+
+  const telaah = telaahPertemuan(input);
+  if (!telaah.ok) return { error: telaah.error };
+
+  // The extra rooms must be genuinely the teacher's parallel classes; ids from
+  // the client are never trusted as-is.
+  const sah = await listRuangSejenis(ruangId, user.id);
+  const diminta = (input.ruangTambahan ?? [])
+    .map((v) => id(v))
+    .filter((v): v is number => v !== null);
+  const ruangLain = sah
+    .filter((r) => diminta.includes(r.id))
+    .map((r) => r.id);
+
+  const berkas = await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama);
+  if (berkas.error !== null) return { error: berkas.error };
+  const isiBerkas = berkas;
+
+  let meet: { eventId: string; link: string } | null = null;
+  if (input.buatMeet) {
+    const hasil = await buatMeet(jadwalMeet(telaah.isi));
+    if (!hasil.ok) return { error: hasil.error };
+    meet = hasil;
+  }
+
+  const isi = {
+    ...telaah.isi,
+    videoUrl: meet?.link ?? telaah.isi.videoUrl,
+    materi: materiAtauNull(input.materi),
+    lampiranNama: isiBerkas.nama,
+    lampiranUrl: isiBerkas.url,
+    presensiBuka: telaah.isi.presensiBuka,
+    presensiTutup: telaah.isi.presensiTutup,
+  };
+
+  if (ruangLain.length > 0) {
+    const hasil = await tambahPertemuanBanyak([ruangId, ...ruangLain], isi);
+    if (!hasil.ok) return { error: hasil.error };
+  } else {
+    const hasil = await tambahPertemuan({
+      ruangId,
+      judul: telaah.isi.judul,
+      tanggal: telaah.isi.tanggal,
+      terbit: telaah.isi.terbit,
+      videoUrl: isi.videoUrl,
+      googleEventId: meet?.eventId ?? null,
+      materi: isi.materi,
+      lampiranNama: isi.lampiranNama,
+      lampiranUrl: isi.lampiranUrl,
+      presensiBuka: isi.presensiBuka,
+      presensiTutup: isi.presensiTutup,
+    });
+    if (!hasil.ok) return { error: hasil.error };
+  }
+
+  segarkan(ruangId);
+  for (const ruang of ruangLain) segarkan(ruang);
+  return { error: null };
+}
+
 export async function hapusPertemuanAction(input: {
   ruangId: number;
   pertemuanId: number;
@@ -487,6 +577,87 @@ export async function tambahTugasAction(input: {
   if (!hasil.ok) return { error: hasil.error };
 
   segarkan(ruangId);
+  return { error: null };
+}
+
+/**
+ * Creates one task in the current room and copies it to parallel rooms (same
+ * teacher, same subject, same school year). One transaction across all rooms:
+ * a failure in the last class leaves no half-created task behind.
+ */
+export async function tambahTugasBanyakAction(input: {
+  ruangId: number;
+  judul: string;
+  deskripsi?: string | null;
+  tenggat?: string | null;
+  tipe: "file" | "teks" | "keduanya";
+  bolehTerlambat: boolean;
+  terbit: boolean;
+  lampiran?: File | null;
+  tipeKerja?: "individu" | "kelompok";
+  nilaiSama?: boolean;
+  /** Other room ids the same task is copied to. */
+  ruangTambahan?: number[];
+}): Promise<HasilAksi> {
+  const ruangId = id(input.ruangId);
+  if (!ruangId) return { error: "Ruang belajar tidak ditemukan." };
+
+  const { user, akses, boleh } = await siapkan(ruangId);
+  if (!akses) return { error: "Anda tidak punya akses ke ruang ini." };
+  if (!boleh) return { error: "Hanya guru pengampu yang bisa menambah tugas." };
+
+  const judul = teks(input.judul, 120);
+  if (!judul) return { error: "Judul tugas wajib diisi (maks. 120 karakter)." };
+  const deskripsi = teks(input.deskripsi, 4000);
+  if (input.deskripsi && String(input.deskripsi).trim().length > 4000) {
+    return { error: "Instruksi tugas maksimal 4000 karakter." };
+  }
+
+  const tipe = input.tipe;
+  if (!["file", "teks", "keduanya"].includes(tipe)) {
+    return { error: "Jenis pengumpulan tidak dikenal." };
+  }
+
+  const tipeKerja: "individu" | "kelompok" =
+    input.tipeKerja === "kelompok" ? "kelompok" : "individu";
+
+  const tenggat = input.tenggat ? tanggalJam(input.tenggat) : null;
+  if (input.tenggat && !tenggat) return { error: "Tenggat tidak valid." };
+
+  const sah = await listRuangSejenis(ruangId, user.id);
+  const diminta = (input.ruangTambahan ?? [])
+    .map((v) => id(v))
+    .filter((v): v is number => v !== null);
+  const ruangLain = sah
+    .filter((r) => diminta.includes(r.id))
+    .map((r) => r.id);
+
+  const berkas = await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama);
+  if (berkas.error !== null) return { error: berkas.error };
+
+  const isi = {
+    judul,
+    deskripsi,
+    tenggat,
+    tipe,
+    bolehTerlambat: Boolean(input.bolehTerlambat),
+    terbit: Boolean(input.terbit),
+    lampiranNama: berkas.nama,
+    lampiranUrl: berkas.url,
+    tipeKerja,
+    nilaiSama: input.nilaiSama !== false,
+  };
+
+  if (ruangLain.length > 0) {
+    const hasil = await tambahTugasBanyak([ruangId, ...ruangLain], isi);
+    if (!hasil.ok) return { error: hasil.error };
+  } else {
+    const hasil = await tambahTugas({ ruangId, ...isi });
+    if (!hasil.ok) return { error: hasil.error };
+  }
+
+  segarkan(ruangId);
+  for (const ruang of ruangLain) segarkan(ruang);
   return { error: null };
 }
 
