@@ -128,7 +128,7 @@ export async function token(k: Kredensial): Promise<string> {
 async function folder(access: string, induk: string, nama: string): Promise<string> {
   const aman = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
   const q = encodeURIComponent(
-    `name = '${aman}' and mimeType = 'folder' and '${induk}' in parents and trashed = false`,
+    `name = '${aman}' and mimeType = 'application/vnd.google-apps.folder' and '${induk}' in parents and trashed = false`,
   );
   const cari = await fetch(
     `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`,
