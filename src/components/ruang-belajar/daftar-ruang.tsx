@@ -22,7 +22,6 @@ import type { RingkasRuang } from "@/lib/ruang-belajar";
  * ikon, chip kelas, dan titik judul kelompok. Isi kartu tetap netral.
  */
 const AKSEN = {
-  garis: "bg-brand/70",
   kotak: "border-brand/30 bg-brand/[0.07]",
   ikon: "text-brand",
   chip: "bg-brand/10 text-brand ring-brand/25",
@@ -43,8 +42,6 @@ function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
         "transition-colors hover:bg-accent",
       )}
     >
-      <div aria-hidden className={cn("h-0.5 w-full", AKSEN.garis)} />
-
       <div className="flex items-start gap-3 p-4">
         <span
           className={cn(
@@ -60,7 +57,7 @@ function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
             <h3 className="truncate text-sm font-semibold text-foreground">
               {item.mapel_nama ?? "Tanpa mapel"}
             </h3>
-            <ChevronRightIcon className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            <ChevronRightIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
           </div>
 
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
@@ -170,8 +167,7 @@ export function DaftarRuang({
         return (
           <section key={mapel} className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span aria-hidden className={cn("size-2 rounded-full", AKSEN.garis)} />
-              <h2 className="text-sm font-medium text-foreground">{mapel}</h2>
+              <h2 className="text-sm font-medium text-brand">{mapel}</h2>
               {kode ? (
                 <span
                   className={cn(

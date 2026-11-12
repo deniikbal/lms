@@ -68,7 +68,9 @@ export function KotakAngka({
   return (
     <div className={cn("rounded-sm border px-2.5 py-1.5", tone.kotak)}>
       <dt className="flex items-center gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase">
-        <span className={tone.ikon}>{ikon}</span>
+        <span aria-hidden className={tone.ikon}>
+          {ikon}
+        </span>
         {label}
       </dt>
       <dd className="mt-0.5 flex items-baseline gap-1.5">

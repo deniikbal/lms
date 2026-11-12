@@ -212,21 +212,17 @@ function Metrik({
       </p>
       <p className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
         {catatan}
-        {href ? (
-          <ArrowUpRightIcon className="size-3 opacity-0 transition-opacity group-hover:opacity-60" />
-        ) : null}
+
       </p>
       {sorot ? (
-        <span
-          aria-hidden
-          className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/70"
-        />
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-brand" />
       ) : null}
     </>
   );
 
   const kelas = cn(
-    "group relative block overflow-hidden rounded-sm bg-card p-4 ring-1 ring-foreground/10",
+    "group relative block overflow-hidden rounded-sm bg-card p-4 ring-1",
+    sorot ? "ring-brand/40" : "ring-foreground/10",
     href && "transition-colors hover:bg-accent",
   );
 
@@ -313,12 +309,9 @@ function KartuJadwal({
                     <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                       {slot.mapel ?? "Tanpa mapel"}
                       {berlangsung ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-foreground px-1.5 py-0.5 text-[0.65rem] font-medium text-background">
-                          <span className="relative flex size-1">
-                            <span className="absolute inline-flex size-full animate-ping rounded-sm bg-background opacity-70" />
-                            <span className="relative inline-flex size-1 rounded-sm bg-background" />
-                          </span>
-                          sekarang
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-brand px-1.5 py-0.5 text-[0.65rem] font-medium text-white">
+                          <span aria-hidden className="size-1 rounded-sm bg-white" />
+                          sedang berlangsung
                         </span>
                       ) : null}
                     </p>
@@ -329,11 +322,10 @@ function KartuJadwal({
 
                   {slot.linkMeet && !lewat ? (
                     <span className="grid size-7 shrink-0 place-items-center rounded-sm ring-1 ring-foreground/10 text-muted-foreground">
-                      <VideoIcon className="size-3.5" />
+                      <VideoIcon aria-hidden className="size-3.5" />
                     </span>
                   ) : null}
 
-                  <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                 </Link>
               </li>
             );
@@ -468,7 +460,6 @@ function KartuRuang({ ruang }: { ruang: RingkasRuang[] }) {
                       Kelas {r.kelas_nama}
                     </p>
                   </div>
-                  <ArrowUpRightIcon className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
                 </div>
 
                 <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-border pt-3">
