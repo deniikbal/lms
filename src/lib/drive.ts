@@ -90,7 +90,17 @@ export function buatJwt(email: string, kunci: string, sekarang = Date.now()): st
   return `${tanpaTandaTangan}.${tandaTangan}`;
 }
 
+/**
+ * Access token di-cache selama masa berlakunya: setiap render ruang memanggil
+ * Drive, dan menukar refresh token tiap kali hanya menambah satu round-trip.
+ */
+const tokenTersimpan = new Map<string, { nilai: string; sampai: number }>();
+
 export async function token(k: Kredensial): Promise<string> {
+  const kunciCache = k.jenis === "refresh" ? k.refreshToken : k.email;
+  const ada = tokenTersimpan.get(kunciCache);
+  if (ada && ada.sampai > Date.now()) return ada.nilai;
+
   const body =
     k.jenis === "refresh"
       ? new URLSearchParams({
@@ -112,9 +122,28 @@ export async function token(k: Kredensial): Promise<string> {
   if (!res.ok) {
     throw new Error(`Google menolak kredensial (${res.status}).`);
   }
-  const data = (await res.json()) as { access_token?: string };
+  const data = (await res.json()) as { access_token?: string; expires_in?: number };
   if (!data.access_token) throw new Error("Google tidak mengirim access token.");
+  tokenTersimpan.set(kunciCache, {
+    nilai: data.access_token,
+    sampai: Date.now() + Math.max(60, (data.expires_in ?? 3600) - 120) * 1000,
+  });
   return data.access_token;
+}
+
+/** Looks a folder up without creating anything — links must not make folders. */
+async function cariFolder(access: string, induk: string, nama: string): Promise<string | null> {
+  const aman = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const q = encodeURIComponent(
+    `name = '${aman}' and mimeType = 'application/vnd.google-apps.folder' and '${induk}' in parents and trashed = false`,
+  );
+  const cari = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`,
+    { headers: { authorization: `Bearer ${access}` } },
+  );
+  if (!cari.ok) throw new Error(`Google Drive gagal mencari folder (${cari.status}).`);
+  const { files } = (await cari.json()) as { files?: { id: string }[] };
+  return files?.[0]?.id ?? null;
 }
 
 /**
@@ -126,17 +155,8 @@ export async function token(k: Kredensial): Promise<string> {
  * the configured root.
  */
 async function folder(access: string, induk: string, nama: string): Promise<string> {
-  const aman = nama.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-  const q = encodeURIComponent(
-    `name = '${aman}' and mimeType = 'application/vnd.google-apps.folder' and '${induk}' in parents and trashed = false`,
-  );
-  const cari = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)&pageSize=1`,
-    { headers: { authorization: `Bearer ${access}` } },
-  );
-  if (!cari.ok) throw new Error(`Google Drive gagal mencari folder (${cari.status}).`);
-  const { files } = (await cari.json()) as { files?: { id: string }[] };
-  if (files?.[0]) return files[0].id;
+  const ada = await cariFolder(access, induk, nama);
+  if (ada) return ada;
 
   const buat = await fetch("https://www.googleapis.com/drive/v3/files?fields=id", {
     method: "POST",
@@ -154,6 +174,44 @@ async function folder(access: string, induk: string, nama: string): Promise<stri
   const { id } = (await buat.json()) as { id?: string };
   if (!id) throw new Error("Google Drive tidak mengembalikan id folder.");
   return id;
+}
+
+const tautanTersimpan = new Map<string, { url: string | null; sampai: number }>();
+
+/**
+ * Deep link to a folder under the root, so "buka Drive" lands the teacher in the
+ * class's own cabinet instead of the Drive home page. Missing folders are not
+ * created — looking must never write.
+ */
+export async function tautanFolderDrive(folderPath: string[]): Promise<string | null> {
+  const kunciCache = folderPath.join("/");
+  const ada = tautanTersimpan.get(kunciCache);
+  if (ada && ada.sampai > Date.now()) return ada.url;
+
+  const k = kredensial();
+  if (!k) return null;
+  let url: string | null = null;
+  try {
+    const access = await token(k);
+    let induk = k.folderId;
+    for (const segmen of folderPath) {
+      const bersih = segmen.replace(/[\\/:*?"<>|]/g, " ").trim().slice(0, 100);
+      if (!bersih) continue;
+      const ketemu = await cariFolder(access, induk, bersih);
+      if (!ketemu) {
+        induk = "";
+        break;
+      }
+      induk = ketemu;
+    }
+    if (induk) url = `https://drive.google.com/drive/folders/${induk}`;
+  } catch {
+    url = null;
+  }
+  // Folder yang belum ada di-cache sebentar saja: begitu guru mengunggah,
+  // folder itu lahir dan link harus langsung terlihat.
+  tautanTersimpan.set(kunciCache, { url, sampai: Date.now() + (url ? 30 : 2) * 60 * 1000 });
+  return url;
 }
 
 /**

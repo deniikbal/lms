@@ -20,6 +20,7 @@ import {
   TabTugas,
 } from "@/components/ruang-belajar/tab-lain";
 import { Badge } from "@/components/ui/badge";
+import { tautanFolderDrive } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 import {
   getNilai,
@@ -67,6 +68,10 @@ export async function RuangShell({
     : [];
   // PDF yang sudah pernah diunggah — supaya satu berkas Drive dipakai di banyak kelas.
   const lampiranTersedia = bolehUbah(peran) ? await listLampiranGuru(userId) : [];
+  // Folder Drive kelas ini, supaya "buka Drive" langsung mendarat di laci yang benar.
+  const driveKelas = bolehUbah(peran)
+    ? await tautanFolderDrive(["Pertemuan", ruang.kelasNama])
+    : null;
   return (
     <div className="space-y-4">
       <nav
@@ -116,6 +121,7 @@ export async function RuangShell({
                   jenis="pertemuan"
                   kelasLain={sejenis}
                   lampiranTersedia={lampiranTersedia}
+                  driveUrl={driveKelas}
                 />
                 <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
                 <BuatDialog ruangId={ruang.id} jenis="kuis" />

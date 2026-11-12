@@ -108,6 +108,7 @@ export function BuatDialog({
   tugas,
   kelasLain = [],
   lampiranTersedia = [],
+  driveUrl = null,
   pemicu,
 }: {
   ruangId: number;
@@ -118,6 +119,8 @@ export function BuatDialog({
   kelasLain?: KelasSejenis[];
   /** PDF yang sudah pernah diunggah guru ini — bisa dipakai ulang tanpa unggah. */
   lampiranTersedia?: { nama: string; url: string }[];
+  /** Folder Drive kelas ini — dibuka langsung supaya tidak perlu cari manual. */
+  driveUrl?: string | null;
   pemicu?: React.ReactElement;
 }) {
   const router = useRouter();
@@ -419,7 +422,19 @@ export function BuatDialog({
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="pertemuan-lampiran">Lampiran PDF (opsional)</Label>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <Label htmlFor="pertemuan-lampiran">Lampiran PDF (opsional)</Label>
+                    {driveUrl ? (
+                      <a
+                        href={driveUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="shrink-0 text-[0.7rem] text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
+                      >
+                        Buka folder Drive kelas ini ↗
+                      </a>
+                    ) : null}
+                  </div>
                   {pertemuan?.lampiranNama && !lampiran && !hapusLampiran ? (
                     <div className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2 text-sm">
                       <span className="truncate text-foreground">{pertemuan.lampiranNama}</span>
