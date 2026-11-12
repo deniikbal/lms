@@ -84,7 +84,7 @@ async function GuruDashboard() {
           <Link
             href="/guru/bank-soal"
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium",
+              "inline-flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm font-medium",
               "bg-card text-foreground ring-1 ring-foreground/10 transition-colors",
               "hover:bg-accent",
             )}
@@ -95,7 +95,7 @@ async function GuruDashboard() {
           <Link
             href="/guru/ruang"
             className={cn(
-              "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-medium",
+              "inline-flex h-9 items-center gap-1.5 rounded-sm px-3 text-sm font-medium",
               "bg-foreground text-background transition-opacity hover:opacity-90",
             )}
           >
@@ -168,7 +168,7 @@ function Kerangka({
   return (
     <section
       className={cn(
-        "flex flex-col overflow-hidden rounded-xl bg-card ring-1 ring-foreground/10",
+        "flex flex-col overflow-hidden rounded-sm bg-card ring-1 ring-foreground/10",
         className,
       )}
     >
@@ -226,7 +226,7 @@ function Metrik({
   );
 
   const kelas = cn(
-    "group relative block overflow-hidden rounded-xl bg-card p-4 ring-1 ring-foreground/10",
+    "group relative block overflow-hidden rounded-sm bg-card p-4 ring-1 ring-foreground/10",
     href && "transition-colors hover:bg-accent",
   );
 
@@ -259,7 +259,7 @@ function KartuJadwal({
           : "Tidak ada sesi hari ini"
       }
       aksi={
-        <span className="rounded-md bg-muted px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground">
+        <span className="rounded-sm bg-muted px-2 py-1 text-xs font-medium tabular-nums text-muted-foreground">
           {jam} WIB
         </span>
       }
@@ -313,10 +313,10 @@ function KartuJadwal({
                     <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
                       {slot.mapel ?? "Tanpa mapel"}
                       {berlangsung ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-foreground px-1.5 py-0.5 text-[0.65rem] font-medium text-background">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-sm bg-foreground px-1.5 py-0.5 text-[0.65rem] font-medium text-background">
                           <span className="relative flex size-1">
-                            <span className="absolute inline-flex size-full animate-ping rounded-full bg-background opacity-70" />
-                            <span className="relative inline-flex size-1 rounded-full bg-background" />
+                            <span className="absolute inline-flex size-full animate-ping rounded-sm bg-background opacity-70" />
+                            <span className="relative inline-flex size-1 rounded-sm bg-background" />
                           </span>
                           sekarang
                         </span>
@@ -328,7 +328,7 @@ function KartuJadwal({
                   </div>
 
                   {slot.linkMeet && !lewat ? (
-                    <span className="grid size-7 shrink-0 place-items-center rounded-md ring-1 ring-foreground/10 text-muted-foreground">
+                    <span className="grid size-7 shrink-0 place-items-center rounded-sm ring-1 ring-foreground/10 text-muted-foreground">
                       <VideoIcon className="size-3.5" />
                     </span>
                   ) : null}
@@ -400,9 +400,9 @@ function KartuDinilai({
                     </span>
                   </div>
 
-                  <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+                  <div className="mt-2 h-1 overflow-hidden rounded-sm bg-muted">
                     <div
-                      className="h-full rounded-full bg-foreground/75 transition-all"
+                      className="h-full rounded-sm bg-foreground/75 transition-all"
                       style={{ width: `${persen}%` }}
                     />
                   </div>
