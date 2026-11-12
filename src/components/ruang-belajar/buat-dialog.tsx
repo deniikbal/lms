@@ -107,6 +107,7 @@ export function BuatDialog({
   pertemuan,
   tugas,
   kelasLain = [],
+  lampiranTersedia = [],
   pemicu,
 }: {
   ruangId: number;
@@ -115,6 +116,8 @@ export function BuatDialog({
   tugas?: TugasEdit;
   /** Parallel classes offered when creating (not editing) materi/tugas. */
   kelasLain?: KelasSejenis[];
+  /** PDF yang sudah pernah diunggah guru ini — bisa dipakai ulang tanpa unggah. */
+  lampiranTersedia?: { nama: string; url: string }[];
   pemicu?: React.ReactElement;
 }) {
   const router = useRouter();
@@ -134,6 +137,7 @@ export function BuatDialog({
   const [videoUrl, setVideoUrl] = useState(pertemuan?.videoUrl ?? "");
   const [buatMeet, setBuatMeet] = useState(Boolean(pertemuan?.googleEventId));
   const [lampiran, setLampiran] = useState<File | null>(null);
+  const [lampiranPilih, setLampiranPilih] = useState("");
   const [hapusLampiran, setHapusLampiran] = useState(false);
   const [terbit, setTerbit] = useState(pertemuan?.terbit ?? true);
 
@@ -173,6 +177,12 @@ export function BuatDialog({
     kelompok: "Kelompok",
   };
 
+  /** Label for the "reuse an uploaded PDF" dropdown; the key is its Drive URL. */
+  const lampiranItems: Record<string, React.ReactNode> = {
+    baru: "— unggah file baru —",
+    ...Object.fromEntries(lampiranTersedia.map((berkas) => [berkas.url, berkas.nama])),
+  };
+
   function reset() {
     setJudul(pertemuan?.judul ?? tugas?.judul ?? "");
     setTanggal(pertemuan?.tanggal ?? "");
@@ -182,6 +192,7 @@ export function BuatDialog({
     setVideoUrl(pertemuan?.videoUrl ?? "");
     setBuatMeet(Boolean(pertemuan?.googleEventId));
     setLampiran(null);
+    setLampiranPilih("");
     setHapusLampiran(false);
     setTerbit(pertemuan?.terbit ?? true);
     setTenggat(tugas?.tenggat ?? "");
@@ -228,6 +239,7 @@ export function BuatDialog({
               presensiBuka,
               presensiTutup,
               lampiran,
+              lampiranLama: lampiranPilih || null,
               ruangTambahan: kelasDipilih,
             })
           : jenis === "tugas"
@@ -428,10 +440,35 @@ export function BuatDialog({
                       accept="application/pdf"
                       onChange={(event) => {
                         setLampiran(event.target.files?.[0] ?? null);
+                        setLampiranPilih("");
                         setHapusLampiran(false);
                       }}
                     />
                   )}
+                  {/* Satu PDF di Drive dipakai ulang: kelas lain tidak perlu unggah lagi. */}
+                  {!pertemuan && jenis === "pertemuan" && lampiranTersedia.length > 0 ? (
+                    <Select
+                      items={lampiranItems}
+                      value={lampiranPilih || "baru"}
+                      onValueChange={(value) => {
+                        const dipilih = value ?? "baru";
+                        setLampiranPilih(dipilih === "baru" ? "" : dipilih);
+                        if (dipilih !== "baru") setLampiran(null);
+                      }}
+                    >
+                      <SelectTrigger id="pertemuan-lampiran-lama" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="baru">— unggah file baru —</SelectItem>
+                        {lampiranTersedia.map((berkas) => (
+                          <SelectItem key={berkas.url} value={berkas.url}>
+                            {berkas.nama}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : null}
                   {pertemuan?.lampiranNama && hapusLampiran ? (
                     <p className="text-[0.7rem] text-muted-foreground">
                       Lampiran lama dihapus saat disimpan.

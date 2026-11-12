@@ -11,6 +11,7 @@ import {
   kirimDiskusi,
   bolehUbah,
   listKelompok,
+  listLampiranGuru,
   listRuangSejenis,
   simpanMeet,
   simpanMateri,
@@ -243,6 +244,21 @@ async function lampiranPertemuan(
   }
 }
 
+/**
+ * Reuses a PDF this teacher already uploaded — the Drive copy is shared, so a
+ * second class never re-uploads the same file. The URL comes from the client,
+ * so it is checked against the teacher's own attachments first.
+ */
+async function lampiranReuse(
+  guruId: string,
+  url: string | null | undefined,
+): Promise<Lampiran> {
+  if (!url) return { error: null, nama: null, url: null };
+  const milik = (await listLampiranGuru(guruId)).find((l) => l.url === url);
+  if (!milik) return { error: "Lampiran itu bukan milik Anda." };
+  return { error: null, nama: milik.nama, url: milik.url };
+}
+
 export async function tambahPertemuanAction(input: {
   ruangId: number;
   judul: string;
@@ -309,6 +325,8 @@ export async function tambahPertemuanBanyakAction(input: {
   presensiBuka?: string | null;
   presensiTutup?: string | null;
   lampiran?: File | null;
+  /** URL lampiran Drive milik guru ini — dipakai ulang, tanpa unggah baru. */
+  lampiranLama?: string | null;
   /** Other room ids the same content is copied to. */
   ruangTambahan?: number[];
 }): Promise<HasilAksi> {
@@ -332,7 +350,10 @@ export async function tambahPertemuanBanyakAction(input: {
     .filter((r) => diminta.includes(r.id))
     .map((r) => r.id);
 
-  const berkas = await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama);
+  const berkas =
+    input.lampiran instanceof File && input.lampiran.size > 0
+      ? await lampiranPertemuan(input.lampiran, akses.ruang.kelasNama)
+      : await lampiranReuse(user.id, input.lampiranLama);
   if (berkas.error !== null) return { error: berkas.error };
   const isiBerkas = berkas;
 

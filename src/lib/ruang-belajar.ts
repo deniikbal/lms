@@ -1047,6 +1047,33 @@ export async function listRuangSejenis(
 }
 
 /**
+ * Attachments the teacher already uploaded, alphabetically — a PDF only ever
+ * needs to reach Drive once; later meetings can point at the same copy. One row
+ * per file name: the same PDF uploaded to three classes is one choice, not three.
+ */
+export async function listLampiranGuru(
+  guruId: string,
+): Promise<{ nama: string; url: string }[]> {
+  const { rows } = await pool.query<{ nama: string; url: string }>(
+    `select distinct on (nama) nama, url from (
+       select p.lampiran_nama as nama, p.lampiran_url as url, p.created_at as waktu
+         from pertemuan p
+         join ruang r on r.id = p.ruang_id
+        where r.guru_id = $1 and p.lampiran_url is not null
+       union all
+       select t.lampiran_nama, t.lampiran_url, t.created_at
+         from tugas t
+         join ruang r on r.id = t.ruang_id
+        where r.guru_id = $1 and t.lampiran_url is not null
+     ) l
+     order by nama asc, waktu desc
+     limit 200`,
+    [guruId],
+  );
+  return rows;
+}
+
+/**
  * Creates the same meeting in every room of the list, inside one transaction.
  *
  * The room order in `ruangIds` fixes the `urutan` tie-break: rooms created in

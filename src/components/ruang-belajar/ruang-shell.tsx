@@ -27,6 +27,7 @@ import {
   listAnggota,
   listDiskusi,
   listKuis,
+  listLampiranGuru,
   listPertemuan,
   listRuangSejenis,
   listTugas,
@@ -64,6 +65,8 @@ export async function RuangShell({
   const sejenis = bolehUbah(peran)
     ? await listRuangSejenis(ruang.id, userId)
     : [];
+  // PDF yang sudah pernah diunggah — supaya satu berkas Drive dipakai di banyak kelas.
+  const lampiranTersedia = bolehUbah(peran) ? await listLampiranGuru(userId) : [];
   return (
     <div className="space-y-4">
       <nav
@@ -108,7 +111,12 @@ export async function RuangShell({
 
             {bolehUbah(peran) ? (
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <BuatDialog ruangId={ruang.id} jenis="pertemuan" kelasLain={sejenis} />
+                <BuatDialog
+                  ruangId={ruang.id}
+                  jenis="pertemuan"
+                  kelasLain={sejenis}
+                  lampiranTersedia={lampiranTersedia}
+                />
                 <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
                 <BuatDialog ruangId={ruang.id} jenis="kuis" />
               </div>
