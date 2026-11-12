@@ -10,17 +10,21 @@ import {
 } from "lucide-react";
 
 import { KotakAngka } from "@/components/kotak-angka";
-import { warnaMapelSaja } from "@/components/warna-mapel";
 import { cn } from "@/lib/utils";
 import type { RingkasRuang } from "@/lib/ruang-belajar";
 
 /**
- * One subject coloured once. Rooms of the same subject share a hue, which is
- * the only thing worth remembering on a list of twelve rooms.
+ * Satu nada netral untuk semua baris.
+ *
+ * Halaman ini menjawab "kelas mana yang saya ampu", bukan "mapel ini warnanya
+ * apa": enam hue per mapel hanya menambah warna tanpa menambah informasi.
  */
-function warnaUntuk(item: RingkasRuang) {
-  return warnaMapelSaja(item.mapel_kode, item.mapel_nama, item.id);
-}
+const NETRAL = {
+  garis: "bg-foreground/15",
+  kotak: "border-border bg-muted",
+  ikon: "text-foreground",
+  chip: "bg-muted text-foreground ring-border",
+} as const;
 
 /**
  * One room: an identity block tinted by subject, then the counts.
@@ -29,26 +33,24 @@ function warnaUntuk(item: RingkasRuang) {
  * "buka" button would only add a target.
  */
 function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
-  const warna = warnaUntuk(item);
-
   return (
     <Link
       href={`${base}/${item.id}`}
       className={cn(
-        "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm",
-        "transition-all hover:-translate-y-0.5 hover:shadow-md",
+        "group flex h-full flex-col overflow-hidden rounded-sm border border-border bg-card",
+        "transition-colors hover:bg-accent",
       )}
     >
-      <div aria-hidden className={cn("h-0.5 w-full", warna.garis)} />
+      <div aria-hidden className={cn("h-0.5 w-full", NETRAL.garis)} />
 
       <div className="flex items-start gap-3 p-4">
         <span
           className={cn(
-            "grid size-10 shrink-0 place-items-center rounded-xl border",
-            warna.kotak,
+            "grid size-10 shrink-0 place-items-center rounded-sm border",
+            NETRAL.kotak,
           )}
         >
-          <DoorOpenIcon className={cn("size-5", warna.ikon)} />
+          <DoorOpenIcon className={cn("size-5", NETRAL.ikon)} />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -62,14 +64,14 @@ function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
             <span
               className={cn(
-                "rounded-md px-1.5 py-0.5 font-medium ring-1 tabular-nums",
-                warna.chip,
+                "rounded-sm px-1.5 py-0.5 font-medium ring-1 tabular-nums",
+                NETRAL.chip,
               )}
             >
               {item.kelas_nama}
             </span>
             {item.mapel_kode ? (
-              <span className="rounded-md bg-muted px-1.5 py-0.5 font-medium text-muted-foreground ring-1 ring-border">
+              <span className="rounded-sm bg-muted px-1.5 py-0.5 font-medium text-muted-foreground ring-1 ring-border">
                 {item.mapel_kode}
               </span>
             ) : null}
@@ -142,7 +144,7 @@ export function DaftarRuang({
 }) {
   if (ruang.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
+      <div className="rounded-sm border border-dashed border-border px-6 py-16 text-center">
         <p className="text-sm text-muted-foreground">{kosong}</p>
       </div>
     );
@@ -161,19 +163,18 @@ export function DaftarRuang({
   return (
     <div className="space-y-5">
       {[...kelompok.entries()].map(([mapel, isi]) => {
-        const warna = warnaUntuk(isi[0]!);
         const kode = isi[0]!.mapel_kode;
 
         return (
           <section key={mapel} className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span aria-hidden className={cn("size-2 rounded-full", warna.garis)} />
+              <span aria-hidden className={cn("size-2 rounded-full", NETRAL.garis)} />
               <h2 className="text-sm font-medium text-foreground">{mapel}</h2>
               {kode ? (
                 <span
                   className={cn(
-                    "rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
-                    warna.chip,
+                    "rounded-sm px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
+                    NETRAL.chip,
                   )}
                 >
                   {kode}
@@ -226,9 +227,9 @@ export function KepalaDaftar({
   );
 
   return (
-    <header className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <header className="overflow-hidden rounded-sm border border-border bg-card">
       <div className="flex items-start gap-3 p-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-indigo-600/25 bg-indigo-500/[0.08] text-indigo-600 dark:border-indigo-400/30 dark:bg-indigo-400/10 dark:text-indigo-400">
+        <span className="grid size-10 shrink-0 place-items-center rounded-sm border border-border bg-muted text-foreground">
           <DoorOpenIcon className="size-5" />
         </span>
 
@@ -243,27 +244,27 @@ export function KepalaDaftar({
       {total && total.kelas > 0 ? (
         <dl className="grid gap-2 border-t border-border bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <KotakAngka
-            warna="indigo"
+            warna="netral"
             ikon={<DoorOpenIcon className="size-3.5" />}
             label="Ruang"
             nilai={total.kelas}
             catatan={`${jumlahMapel} mapel`}
           />
           <KotakAngka
-            warna="sky"
+            warna="netral"
             ikon={<UsersIcon className="size-3.5" />}
             label="Siswa"
             nilai={total.siswa}
             catatan="dihitung per ruang"
           />
           <KotakAngka
-            warna="amber"
+            warna="netral"
             ikon={<BookOpenIcon className="size-3.5" />}
             label="Tugas"
             nilai={total.tugas}
           />
           <KotakAngka
-            warna="emerald"
+            warna="netral"
             ikon={<ListChecksIcon className="size-3.5" />}
             label="Kuis"
             nilai={total.kuis}

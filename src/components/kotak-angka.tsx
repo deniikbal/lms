@@ -8,6 +8,11 @@ import { cn } from "@/lib/utils";
  * emerald, essays sky, usage violet, totals amber.
  */
 export const WARNA_ANGKA = {
+  /** Tanpa hue: dipakai di halaman yang sengaja netral saja. */
+  netral: {
+    kotak: "border-border bg-muted",
+    ikon: "text-muted-foreground",
+  },
   indigo: {
     kotak:
       "border-indigo-600/25 bg-indigo-500/[0.06] dark:border-indigo-400/25 dark:bg-indigo-400/[0.08]",
@@ -56,7 +61,7 @@ export function KotakAngka({
 }) {
   const tone = WARNA_ANGKA[warna];
   return (
-    <div className={cn("rounded-lg border px-2.5 py-1.5", tone.kotak)}>
+    <div className={cn("rounded-sm border px-2.5 py-1.5", tone.kotak)}>
       <dt className="flex items-center gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase">
         <span className={tone.ikon}>{ikon}</span>
         {label}
