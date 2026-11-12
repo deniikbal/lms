@@ -19,7 +19,6 @@ import {
 import { HapusBankButton } from "@/components/bank-soal/hapus-bank-button";
 import { HapusTopikButton } from "@/components/bank-soal/hapus-topik";
 import { KotakAngka } from "@/components/kotak-angka";
-import { warnaMapel } from "@/components/warna-mapel";
 import { LoadingPanel } from "@/components/loading-panel";
 import { Kosong, Panel } from "@/components/ruang-belajar/panel";
 import { Button } from "@/components/ui/button";
@@ -66,7 +65,6 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
   ]);
 
   const dasar = `/guru/bank-soal/topik/${topik.id}`;
-  const warna = warnaMapel(topik);
   const kosong = soal.length === 0;
 
   return (
@@ -81,28 +79,22 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
         >
           Bank Soal
         </Link>
-        <ChevronRightIcon className="size-3" />
+        <ChevronRightIcon aria-hidden className="size-3" />
         <span className="text-foreground">{topik.nama}</span>
       </nav>
 
-      {/*
-        The topic header wears the same hue as its card in the list, so walking
-        from the list into a topic feels like opening that folder rather than
-        landing on a different site.
-      */}
-      <header className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div aria-hidden className={cn("h-0.5 w-full", kosong ? "bg-border" : warna.garis)} />
-
+      <header className="overflow-hidden rounded-sm border border-border bg-card">
         <div className="flex flex-wrap items-start justify-between gap-3 p-4">
           <div className="flex min-w-0 items-start gap-3">
             <span
               className={cn(
-                "grid size-10 shrink-0 place-items-center rounded-xl border",
-                kosong ? "border-border bg-muted/60" : warna.kotak,
+                "grid size-10 shrink-0 place-items-center rounded-sm border",
+                kosong ? "border-border bg-muted/60" : "border-brand/30 bg-brand/[0.07]",
               )}
             >
               <FolderOpenIcon
-                className={cn("size-5", kosong ? "text-muted-foreground/60" : warna.ikon)}
+                aria-hidden
+                className={cn("size-5", kosong ? "text-muted-foreground/60" : "text-brand")}
               />
             </span>
 
@@ -114,8 +106,8 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                 {topik.mapelKode ? (
                   <span
                     className={cn(
-                      "rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium ring-1 tabular-nums",
-                      kosong ? "bg-muted text-muted-foreground ring-border" : warna.chip,
+                      "rounded-sm px-1.5 py-0.5 text-[0.65rem] font-medium ring-1 tabular-nums",
+                      kosong ? "bg-muted text-muted-foreground ring-border" : "bg-brand/10 text-brand ring-brand/25",
                     )}
                   >
                     {topik.mapelKode}
@@ -152,25 +144,25 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
 
         <dl className="grid gap-2 border-t border-border bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <KotakAngka
-            warna="indigo"
+            warna="brand"
             ikon={<FileTextIcon className="size-3.5" />}
             label="Soal"
             nilai={topik.soal}
           />
           <KotakAngka
-            warna="emerald"
+            warna="netral"
             ikon={<HelpCircleIcon className="size-3.5" />}
             label="Pilihan ganda"
             nilai={topik.jumlahPg}
           />
           <KotakAngka
-            warna="sky"
+            warna="netral"
             ikon={<PencilIcon className="size-3.5" />}
             label="Esai"
             nilai={topik.jumlahEsai}
           />
           <KotakAngka
-            warna="violet"
+            warna="netral"
             ikon={<ShareIcon className="size-3.5" />}
             label="Dipakai di kuis"
             nilai={topik.dipakai}
@@ -207,7 +199,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
         {kosong ? (
           <Kosong>
             Topik ini masih kosong. Tulis soal pertama, atau tempel banyak soal
-            sekaligus — semuanya otomatis masuk ke “{topik.nama}”.
+            sekaligus, semuanya otomatis masuk ke “{topik.nama}”.
           </Kosong>
         ) : (
           <ol className="space-y-2">
@@ -216,15 +208,12 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
               return (
                 <li
                   key={item.id}
-                  className="group rounded-xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-border hover:bg-muted/20"
+                  className="group rounded-sm border border-border bg-card px-3 py-2.5 transition-colors hover:bg-muted/20"
                 >
                   <div className="flex items-start gap-2.5">
                     <span
                       className={cn(
-                        "mt-0.5 grid size-6 shrink-0 place-items-center rounded-md text-xs font-semibold tabular-nums",
-                        pg
-                          ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                          : "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+                        "mt-0.5 grid size-6 shrink-0 place-items-center rounded-sm bg-muted text-xs font-semibold text-foreground tabular-nums",
                       )}
                     >
                       {urutan + 1}
@@ -243,7 +232,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                               <li
                                 key={huruf}
                                 className={cn(
-                                  "flex items-start gap-1.5 rounded-md px-1 py-0.5 text-xs",
+                                  "flex items-start gap-1.5 rounded-sm px-1 py-0.5 text-xs",
                                   kunci
                                     ? "bg-emerald-500/[0.08] font-medium text-emerald-800 dark:text-emerald-300"
                                     : "text-muted-foreground",
@@ -257,7 +246,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                                       : "bg-muted text-muted-foreground",
                                   )}
                                 >
-                                  {kunci ? <CheckIcon className="size-2.5" /> : huruf}
+                                  {kunci ? <CheckIcon aria-hidden className="size-2.5" /> : huruf}
                                 </span>
                                 <span className="min-w-0">{isi}</span>
                               </li>
@@ -266,7 +255,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                         </ul>
                       ) : (
                         <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <CircleDashedIcon className="size-3" />
+                          <CircleDashedIcon aria-hidden className="size-3" />
                           Esai · dikoreksi manual
                         </p>
                       )}
@@ -274,10 +263,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                       <div className="flex flex-wrap items-center gap-1">
                         <span
                           className={cn(
-                            "rounded px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
-                            pg
-                              ? "bg-emerald-500/10 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-400/15 dark:text-emerald-300 dark:ring-emerald-400/25"
-                              : "bg-violet-500/10 text-violet-700 ring-violet-600/20 dark:bg-violet-400/15 dark:text-violet-300 dark:ring-violet-400/25",
+                            "rounded-sm bg-muted px-1.5 py-0.5 text-[0.65rem] font-medium text-foreground ring-1 ring-border",
                           )}
                         >
                           {labelJenisSoalBank(item.jenis)}
@@ -287,7 +273,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                         </span>
                         {item.dipakai > 0 ? (
                           <span className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[0.65rem] text-muted-foreground tabular-nums">
-                            <ShareIcon className="size-2.5" />
+                            <ShareIcon aria-hidden className="size-2.5" />
                             dipakai {item.dipakai}×
                           </span>
                         ) : null}
@@ -304,7 +290,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                       <Link
                         href={`/guru/bank-soal/soal/${item.id}/ubah`}
                         aria-label={`Ubah soal ${urutan + 1}`}
-                        className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="rounded-sm p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                       >
                         <PencilIcon className="size-3.5" />
                       </Link>
@@ -327,11 +313,11 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
         {pemakaian.length === 0 ? (
           <Kosong>
             Topik ini belum ditugaskan ke kuis mana pun. Buka sebuah kuis, lalu
-            pilih “Ambil topik dari bank” — seluruh soal di topik ini masuk
+            pilih “Ambil topik dari bank”, seluruh soal di topik ini masuk
             sekaligus.
           </Kosong>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
+          <div className="overflow-hidden rounded-sm border border-border bg-card">
             <Table>
               <TableHeader>
                 <TableRow className="border-border hover:bg-transparent">
@@ -361,7 +347,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
                         className="inline-flex items-center gap-1 text-sm text-foreground underline-offset-4 transition-colors hover:underline"
                       >
                         {row.kuis}
-                        <ChevronRightIcon className="size-3 text-muted-foreground" />
+                        <ChevronRightIcon aria-hidden className="size-3 text-muted-foreground" />
                       </Link>
                     </TableCell>
                     <TableCell className="px-3 py-2.5 text-sm text-muted-foreground">
@@ -389,7 +375,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
           href="/guru/bank-soal"
           className="inline-flex items-center gap-1 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
         >
-          <ArrowLeftIcon className="size-3.5" />
+          <ArrowLeftIcon aria-hidden className="size-3.5" />
           Semua topik
         </Link>
       </div>

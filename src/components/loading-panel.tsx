@@ -52,25 +52,25 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
       return (
         <div className="space-y-4">
           <Skeleton className="h-3 w-36" />
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-4 rounded-sm border border-border bg-card p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-6 w-40" />
-                  <Skeleton className="h-5 w-14 rounded-full" />
-                  <Skeleton className="h-5 w-32 rounded-full" />
+                  <Skeleton className="h-5 w-14 rounded-sm" />
+                  <Skeleton className="h-5 w-32 rounded-sm" />
                 </div>
                 <Skeleton className="h-3.5 w-72" />
               </div>
               <div className="flex gap-2">
-                <Skeleton className="h-8 w-24 rounded-md" />
-                <Skeleton className="h-8 w-20 rounded-md" />
-                <Skeleton className="h-8 w-16 rounded-md" />
+                <Skeleton className="h-8 w-24 rounded-sm" />
+                <Skeleton className="h-8 w-20 rounded-sm" />
+                <Skeleton className="h-8 w-16 rounded-sm" />
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               {[0, 1, 2, 3].map((i) => (
-                <Skeleton key={i} className="h-14 rounded-lg" />
+                <Skeleton key={i} className="h-14 rounded-sm" />
               ))}
             </div>
           </div>
@@ -81,7 +81,7 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <Skeleton key={i} className="h-32 rounded-xl" />
+              <Skeleton key={i} className="h-32 rounded-sm" />
             ))}
           </div>
         </div>
@@ -95,16 +95,16 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
             <Skeleton className="h-7 w-56" />
             <Skeleton className="h-3.5 w-80" />
           </div>
-          <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-4 rounded-sm border border-border bg-card p-4">
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="space-y-1.5">
                 <Skeleton className="h-3 w-24" />
-                <Skeleton className={i === 2 ? "h-24 w-full rounded-md" : "h-9 w-full rounded-md"} />
+                <Skeleton className={i === 2 ? "h-24 w-full rounded-sm" : "h-9 w-full rounded-sm"} />
               </div>
             ))}
             <div className="flex justify-end gap-2 pt-1">
-              <Skeleton className="h-8 w-20 rounded-md" />
-              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-20 rounded-sm" />
+              <Skeleton className="h-8 w-28 rounded-sm" />
             </div>
           </div>
         </div>
@@ -117,10 +117,10 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
             <Skeleton className="h-3 w-32" />
             <Skeleton className="h-7 w-64" />
           </div>
-          <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="space-y-3 rounded-sm border border-border bg-card p-4">
             <div className="flex items-center justify-between">
               <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-8 w-28 rounded-md" />
+              <Skeleton className="h-8 w-28 rounded-sm" />
             </div>
             {[0, 1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="space-y-2 border-t border-border/60 pt-2">
@@ -139,12 +139,12 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
             <div className="space-y-3">
               {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-24 rounded-xl" />
+                <Skeleton key={i} className="h-24 rounded-sm" />
               ))}
             </div>
             <div className="space-y-3">
-              <Skeleton className="h-32 rounded-xl" />
-              <Skeleton className="h-32 rounded-xl" />
+              <Skeleton className="h-32 rounded-sm" />
+              <Skeleton className="h-32 rounded-sm" />
             </div>
           </div>
         </div>
@@ -161,7 +161,7 @@ function Isi({ varian }: { varian: VarianSkeleton }) {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2, 3, 4, 5].map((i) => (
-              <Skeleton key={i} className="h-28 rounded-xl" />
+              <Skeleton key={i} className="h-28 rounded-sm" />
             ))}
           </div>
         </div>
