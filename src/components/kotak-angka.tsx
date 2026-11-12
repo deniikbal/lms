@@ -13,6 +13,11 @@ export const WARNA_ANGKA = {
     kotak: "border-border bg-muted",
     ikon: "text-muted-foreground",
   },
+  /** Aksen brand sekolah: kotak netral, hanya ikonnya yang berwarna. */
+  brand: {
+    kotak: "border-border bg-muted",
+    ikon: "text-brand",
+  },
   indigo: {
     kotak:
       "border-indigo-600/25 bg-indigo-500/[0.06] dark:border-indigo-400/25 dark:bg-indigo-400/[0.08]",

@@ -39,6 +39,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-brand: var(--brand);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -80,6 +81,10 @@ body {
   --chart-4: oklch(0.37 0.013 285.805);
   --chart-5: oklch(0.274 0.006 286.033);
   --radius: 0.625rem;
+  /* Satu aksen identitas sekolah: navy tinta, keluarga warna yang sama dengan
+     aplikasi Rekapin (#1e3a8a). Bukan indigo/violet gradien bawaan AI, dan
+     dipakai hanya di penanda, bukan di seluruh halaman. */
+  --brand: oklch(0.379 0.146 265.5);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-primary: oklch(0.648 0.2 131.684);
@@ -106,6 +111,8 @@ body {
   --accent: oklch(0.274 0.006 286.033);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* Navy yang sama, dinaikkan terangnya supaya tetap terbaca di latar gelap. */
+  --brand: oklch(0.76 0.115 258);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);

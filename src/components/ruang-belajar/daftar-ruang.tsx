@@ -14,16 +14,18 @@ import { cn } from "@/lib/utils";
 import type { RingkasRuang } from "@/lib/ruang-belajar";
 
 /**
- * Satu nada netral untuk semua baris.
+ * Satu aksen navy untuk semua baris.
  *
  * Halaman ini menjawab "kelas mana yang saya ampu", bukan "mapel ini warnanya
- * apa": enam hue per mapel hanya menambah warna tanpa menambah informasi.
+ * apa": enam hue per mapel hanya menambah warna tanpa menambah informasi. Jadi
+ * hue-nya satu (brand), dan hanya muncul di penanda: garis atas kartu, kotak
+ * ikon, chip kelas, dan titik judul kelompok. Isi kartu tetap netral.
  */
-const NETRAL = {
-  garis: "bg-foreground/15",
-  kotak: "border-border bg-muted",
-  ikon: "text-foreground",
-  chip: "bg-muted text-foreground ring-border",
+const AKSEN = {
+  garis: "bg-brand/70",
+  kotak: "border-brand/30 bg-brand/[0.07]",
+  ikon: "text-brand",
+  chip: "bg-brand/10 text-brand ring-brand/25",
 } as const;
 
 /**
@@ -41,16 +43,16 @@ function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
         "transition-colors hover:bg-accent",
       )}
     >
-      <div aria-hidden className={cn("h-0.5 w-full", NETRAL.garis)} />
+      <div aria-hidden className={cn("h-0.5 w-full", AKSEN.garis)} />
 
       <div className="flex items-start gap-3 p-4">
         <span
           className={cn(
             "grid size-10 shrink-0 place-items-center rounded-sm border",
-            NETRAL.kotak,
+            AKSEN.kotak,
           )}
         >
-          <DoorOpenIcon className={cn("size-5", NETRAL.ikon)} />
+          <DoorOpenIcon className={cn("size-5", AKSEN.ikon)} />
         </span>
 
         <div className="min-w-0 flex-1">
@@ -65,7 +67,7 @@ function KartuRuang({ item, base }: { item: RingkasRuang; base: string }) {
             <span
               className={cn(
                 "rounded-sm px-1.5 py-0.5 font-medium ring-1 tabular-nums",
-                NETRAL.chip,
+                AKSEN.chip,
               )}
             >
               {item.kelas_nama}
@@ -168,13 +170,13 @@ export function DaftarRuang({
         return (
           <section key={mapel} className="space-y-2.5">
             <div className="flex flex-wrap items-center gap-2">
-              <span aria-hidden className={cn("size-2 rounded-full", NETRAL.garis)} />
+              <span aria-hidden className={cn("size-2 rounded-full", AKSEN.garis)} />
               <h2 className="text-sm font-medium text-foreground">{mapel}</h2>
               {kode ? (
                 <span
                   className={cn(
                     "rounded-sm px-1.5 py-0.5 text-[0.65rem] font-medium ring-1",
-                    NETRAL.chip,
+                    AKSEN.chip,
                   )}
                 >
                   {kode}
@@ -229,7 +231,7 @@ export function KepalaDaftar({
   return (
     <header className="overflow-hidden rounded-sm border border-border bg-card">
       <div className="flex items-start gap-3 p-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-sm border border-border bg-muted text-foreground">
+        <span className="grid size-10 shrink-0 place-items-center rounded-sm border border-brand/30 bg-brand/[0.07] text-brand">
           <DoorOpenIcon className="size-5" />
         </span>
 
@@ -244,27 +246,27 @@ export function KepalaDaftar({
       {total && total.kelas > 0 ? (
         <dl className="grid gap-2 border-t border-border bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-4">
           <KotakAngka
-            warna="netral"
+            warna="brand"
             ikon={<DoorOpenIcon className="size-3.5" />}
             label="Ruang"
             nilai={total.kelas}
             catatan={`${jumlahMapel} mapel`}
           />
           <KotakAngka
-            warna="netral"
+            warna="brand"
             ikon={<UsersIcon className="size-3.5" />}
             label="Siswa"
             nilai={total.siswa}
             catatan="dihitung per ruang"
           />
           <KotakAngka
-            warna="netral"
+            warna="brand"
             ikon={<BookOpenIcon className="size-3.5" />}
             label="Tugas"
             nilai={total.tugas}
           />
           <KotakAngka
-            warna="netral"
+            warna="brand"
             ikon={<ListChecksIcon className="size-3.5" />}
             label="Kuis"
             nilai={total.kuis}
