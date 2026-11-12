@@ -12,7 +12,6 @@ import {
 
 import { FilterTopik } from "@/components/bank-soal/filter-topik";
 import { KotakAngka } from "@/components/kotak-angka";
-import { warnaMapel } from "@/components/warna-mapel";
 import { Kosong } from "@/components/ruang-belajar/panel";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -71,8 +70,8 @@ export function DaftarTopik({
 
       {topik.length === 0 ? (
         <Kosong>
-          Belum ada topik. Mulai dengan membuat satu topik — misalnya{" "}
-          <em>Laju Reaksi</em> — lalu isi soalnya di dalam topik itu. Satu topik
+          Belum ada topik. Mulai dengan membuat satu topik, misalnya{" "}
+          <em>Laju Reaksi</em>, lalu isi soalnya di dalam topik itu. Satu topik
           bisa ditugaskan utuh ke kuis di kelas mana pun yang Anda ampu.
         </Kosong>
       ) : (
@@ -110,11 +109,11 @@ export function KepalaBank({
   tautanBaru?: string;
 }) {
   return (
-    <header className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <header className="overflow-hidden rounded-sm border border-border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-3 p-4">
         <div className="min-w-0 space-y-1.5">
           <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight text-foreground">
-            <LibraryBigIcon className="size-4 text-indigo-600 dark:text-indigo-400" />
+            <LibraryBigIcon aria-hidden className="size-4 text-brand" />
             Bank Soal
           </h1>
           <p className="max-w-3xl text-sm text-muted-foreground">
@@ -140,32 +139,32 @@ export function KepalaBank({
       */}
       <dl className="grid gap-2 border-t border-border bg-muted/40 p-4 sm:grid-cols-2 lg:grid-cols-5">
         <KotakAngka
-          warna="indigo"
+          warna="brand"
           ikon={<FolderOpenIcon className="size-3.5" />}
           label="Topik"
           nilai={topik}
           catatan={kosong > 0 ? `${kosong} masih kosong` : undefined}
         />
         <KotakAngka
-          warna="emerald"
+          warna="netral"
           ikon={<HelpCircleIcon className="size-3.5" />}
           label="Pilihan ganda"
           nilai={pg}
         />
         <KotakAngka
-          warna="sky"
+          warna="netral"
           ikon={<PenLineIcon className="size-3.5" />}
           label="Esai"
           nilai={esai}
         />
         <KotakAngka
-          warna="violet"
+          warna="netral"
           ikon={<ShareIcon className="size-3.5" />}
           label="Dipakai di kuis"
           nilai={dipakai}
         />
         <KotakAngka
-          warna="amber"
+          warna="netral"
           ikon={<CircleDashedIcon className="size-3.5" />}
           label="Total soal"
           nilai={total}
@@ -177,31 +176,27 @@ export function KepalaBank({
 
 function KartuTopik({ item, base }: { item: TopikRingkas; base: string }) {
   const kosong = item.soal === 0;
-  const warna = warnaMapel(item);
 
   return (
     <li>
       <Link
         href={`${base}/topik/${item.id}`}
         className={cn(
-          "group flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all",
-          "hover:-translate-y-0.5 hover:shadow-md",
+          "group flex h-full flex-col overflow-hidden rounded-sm border bg-card",
+          "transition-colors hover:bg-accent",
           kosong ? "border-dashed border-border" : "border-border",
         )}
       >
-        {/* One hairline in the subject's hue: enough to tell two cards apart at
-            a glance, small enough not to shout. */}
-        <span aria-hidden className={cn("h-0.5 w-full shrink-0", kosong ? "bg-border" : warna.garis)} />
-
         <div className="flex flex-1 items-start gap-2.5 p-3">
           <span
             className={cn(
-              "mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border",
-              kosong ? "border-border bg-muted/60" : warna.kotak,
+              "mt-0.5 grid size-8 shrink-0 place-items-center rounded-sm border",
+              kosong ? "border-border bg-muted/60" : "border-brand/30 bg-brand/[0.07]",
             )}
           >
             <FolderOpenIcon
-              className={cn("size-4", kosong ? "text-muted-foreground/60" : warna.ikon)}
+              aria-hidden
+              className={cn("size-4", kosong ? "text-muted-foreground/60" : "text-brand")}
             />
           </span>
 
@@ -213,10 +208,10 @@ function KartuTopik({ item, base }: { item: TopikRingkas; base: string }) {
               {item.mapelKode ? (
                 <span
                   className={cn(
-                    "shrink-0 rounded-md px-1.5 py-0.5 text-[0.65rem] font-medium ring-1 tabular-nums",
+                    "shrink-0 rounded-sm px-1.5 py-0.5 text-[0.65rem] font-medium ring-1 tabular-nums",
                     kosong
                       ? "bg-muted text-muted-foreground ring-border"
-                      : warna.chip,
+                      : "bg-brand/10 text-brand ring-brand/25",
                   )}
                 >
                   {item.mapelKode}
@@ -249,6 +244,7 @@ function KartuTopik({ item, base }: { item: TopikRingkas; base: string }) {
           </div>
 
           <ChevronRightIcon
+            aria-hidden
             className={cn(
               "mt-1.5 size-4 shrink-0 transition-transform",
               "text-muted-foreground/50 group-hover:translate-x-0.5 group-hover:text-foreground",
@@ -279,7 +275,7 @@ function KartuTopik({ item, base }: { item: TopikRingkas; base: string }) {
 /** Small stat pill inside a topic card. */
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[0.68rem] text-muted-foreground tabular-nums">
+    <span className="inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5 text-[0.68rem] text-muted-foreground tabular-nums">
       {children}
     </span>
   );

@@ -7,7 +7,7 @@
 
 export function Kosong({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-dashed border-border/70 px-6 py-14 text-center">
+    <div className="rounded-sm border border-dashed border-border/70 px-6 py-14 text-center">
       <p className="text-sm text-muted-foreground">{children}</p>
     </div>
   );

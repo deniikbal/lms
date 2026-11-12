@@ -57,11 +57,11 @@ export function FilterTopik({
         event.preventDefault();
         pindah({});
       }}
-      className="rounded-xl border border-border bg-card p-3 shadow-sm"
+      className="rounded-sm border border-border bg-card p-3"
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <SearchIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             name="cari"
             value={cari}
