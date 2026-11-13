@@ -110,6 +110,7 @@ export function BuatDialog({
   lampiranTersedia = [],
   driveUrl = null,
   pemicu,
+  kelasTombol,
 }: {
   ruangId: number;
   jenis: JenisBuat;
@@ -122,6 +123,11 @@ export function BuatDialog({
   /** Folder Drive kelas ini — dibuka langsung supaya tidak perlu cari manual. */
   driveUrl?: string | null;
   pemicu?: React.ReactElement;
+  /**
+   * Extra classes for the built-in trigger button. Used to give it a thumb-sized
+   * height on phones without changing the desktop density.
+   */
+  kelasTombol?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -304,7 +310,16 @@ export function BuatDialog({
       {pemicu ? (
         <DialogTrigger render={pemicu} />
       ) : (
-        <DialogTrigger render={<Button type="button" size="sm" variant="outline" />}>
+        <DialogTrigger
+          render={
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className={kelasTombol}
+            />
+          }
+        >
           <PlusIcon />
           {JUDUL[jenis].tombol}
         </DialogTrigger>

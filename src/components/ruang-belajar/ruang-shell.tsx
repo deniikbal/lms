@@ -90,12 +90,18 @@ export async function RuangShell({
         the active tab and its material are what the eye lands on.
       */}
       <div className="overflow-hidden rounded-sm border border-border bg-card">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 pb-3">
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                {ruang.mapelNama}
-              </h1>
+        {/*
+          Phone: title block on its own line, then the actions as a full-width
+          primary plus a pair of outline buttons. Side by side they overlapped
+          the title and squeezed the subject name into a column two words wide.
+        */}
+        <div className="flex flex-col gap-3 px-4 pt-4 pb-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1.5 sm:flex-1">
+            <h1 className="text-lg font-semibold tracking-tight break-words text-foreground sm:text-xl">
+              {ruang.mapelNama}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-sm text-muted-foreground">
                 {ruang.kelasNama}
               </span>
@@ -117,7 +123,7 @@ export async function RuangShell({
           </div>
 
           {bolehUbah(peran) ? (
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
               {/* Satu aksi utama: pertemuan adalah yang paling sering dibuat. */}
               <BuatDialog
                 ruangId={ruang.id}
@@ -126,14 +132,26 @@ export async function RuangShell({
                 lampiranTersedia={lampiranTersedia}
                 driveUrl={driveKelas}
                 pemicu={
-                  <Button size="sm" className="bg-brand text-white hover:bg-brand/90">
+                  <Button
+                    size="sm"
+                    className="h-11 w-full justify-center bg-brand text-white hover:bg-brand/90 sm:h-7 sm:w-auto"
+                  >
                     <PlusIcon aria-hidden />
                     Buat pertemuan
                   </Button>
                 }
               />
-              <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
-              <BuatDialog ruangId={ruang.id} jenis="kuis" />
+              <BuatDialog
+                ruangId={ruang.id}
+                jenis="tugas"
+                kelasLain={sejenis}
+                kelasTombol="h-11 flex-1 justify-center sm:h-7 sm:flex-none"
+              />
+              <BuatDialog
+                ruangId={ruang.id}
+                jenis="kuis"
+                kelasTombol="h-11 flex-1 justify-center sm:h-7 sm:flex-none"
+              />
             </div>
           ) : null}
         </div>
