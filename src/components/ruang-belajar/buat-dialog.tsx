@@ -74,18 +74,18 @@ export type TugasEdit = {
 
 const JUDUL: Record<JenisBuat, { tombol: string; judul: string; deskripsi: string }> = {
   pertemuan: {
-    tombol: "Pertemuan",
+    tombol: "Buat pertemuan",
     judul: "Pertemuan baru",
     deskripsi:
       "Satu pertemuan = satu kartu di tab Materi. Nomor urut diisi otomatis.",
   },
   tugas: {
-    tombol: "Tugas",
+    tombol: "Buat tugas",
     judul: "Tugas baru",
     deskripsi: "Siswa mengumpulkan di tab Tugas. Draf tidak terlihat oleh siswa.",
   },
   kuis: {
-    tombol: "Kuis",
+    tombol: "Buat kuis",
     judul: "Kuis baru",
     deskripsi:
       "Kuis dibuat sebagai draf dulu; soal ditambahkan sebelum diterbitkan.",

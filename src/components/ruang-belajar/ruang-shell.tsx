@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  ChevronRightIcon,
-  SchoolIcon,
-  TargetIcon,
-  UserRoundIcon,
-  UsersIcon,
-} from "lucide-react";
+import { ChevronRightIcon, PlusIcon } from "lucide-react";
 
 import { BuatDialog } from "@/components/ruang-belajar/buat-dialog";
 import { RuangTabs } from "@/components/ruang-belajar/ruang-tabs";
@@ -19,7 +13,7 @@ import {
   TabPresensi,
   TabTugas,
 } from "@/components/ruang-belajar/tab-lain";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { tautanFolderDrive } from "@/lib/drive";
 import { cn } from "@/lib/utils";
 import {
@@ -91,73 +85,66 @@ export async function RuangShell({
       {/*
         The room's identity is one card and the tabs are its footer: everything
         that answers "which class is this?" sits inside the same frame as the
-        navigation, instead of a loose heading followed by a second loose strip.
+        navigation. Four equal coloured fact boxes used to sit here, which put
+        four focal points above the content; the facts are now one quiet row so
+        the active tab and its material are what the eye lands on.
       */}
-      <div className="overflow-hidden rounded-sm border border-indigo-500/25 bg-card shadow-sm dark:border-indigo-400/25">
-        <div className="space-y-4 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
-                  {ruang.mapelNama}
-                </h1>
-                <Badge variant="secondary">{ruang.mapelKode}</Badge>
-                <Badge variant="outline" className="tabular-nums">
-                  {ruang.taNama} · {ruang.taSemester}
-                </Badge>
-              </div>
-
-              {ruang.deskripsi ? (
-                <p className="max-w-3xl line-clamp-2 text-sm whitespace-pre-line text-muted-foreground">
-                  {ruang.deskripsi}
-                </p>
+      <div className="overflow-hidden rounded-sm border border-border bg-card">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 pt-4 pb-3">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">
+                {ruang.mapelNama}
+              </h1>
+              <span className="text-sm text-muted-foreground">
+                {ruang.kelasNama}
+              </span>
+              {ruang.mapelKode ? (
+                <span className="rounded-sm bg-brand/10 px-1.5 py-0.5 text-[0.65rem] font-medium text-brand ring-1 ring-brand/25">
+                  {ruang.mapelKode}
+                </span>
               ) : null}
+              <span className="rounded-sm bg-muted px-1.5 py-0.5 text-[0.65rem] text-muted-foreground tabular-nums ring-1 ring-border">
+                {ruang.taNama} {ruang.taSemester}
+              </span>
             </div>
 
-            {bolehUbah(peran) ? (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <BuatDialog
-                  ruangId={ruang.id}
-                  jenis="pertemuan"
-                  kelasLain={sejenis}
-                  lampiranTersedia={lampiranTersedia}
-                  driveUrl={driveKelas}
-                />
-                <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
-                <BuatDialog ruangId={ruang.id} jenis="kuis" />
-              </div>
+            {ruang.deskripsi ? (
+              <p className="max-w-3xl line-clamp-2 text-sm whitespace-pre-line text-muted-foreground">
+                {ruang.deskripsi}
+              </p>
             ) : null}
           </div>
 
-          <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Info
-              warna="emerald"
-              ikon={<SchoolIcon className="size-3.5" />}
-              label="Kelas"
-              nilai={ruang.kelasNama}
-            />
-            <Info
-              warna="sky"
-              ikon={<UserRoundIcon className="size-3.5" />}
-              label="Guru pengampu"
-              nilai={ruang.guruNama ?? "Belum ada guru"}
-            />
-            <Info
-              warna="amber"
-              ikon={<TargetIcon className="size-3.5" />}
-              label="KKM"
-              nilai={String(ruang.kkm)}
-            />
-            <Info
-              warna="violet"
-              ikon={<UsersIcon className="size-3.5" />}
-              label="Siswa"
-              nilai={`${ruang.jumlahSiswa} siswa`}
-            />
-          </dl>
+          {bolehUbah(peran) ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {/* Satu aksi utama: pertemuan adalah yang paling sering dibuat. */}
+              <BuatDialog
+                ruangId={ruang.id}
+                jenis="pertemuan"
+                kelasLain={sejenis}
+                lampiranTersedia={lampiranTersedia}
+                driveUrl={driveKelas}
+                pemicu={
+                  <Button size="sm" className="bg-brand text-white hover:bg-brand/90">
+                    <PlusIcon aria-hidden />
+                    Buat pertemuan
+                  </Button>
+                }
+              />
+              <BuatDialog ruangId={ruang.id} jenis="tugas" kelasLain={sejenis} />
+              <BuatDialog ruangId={ruang.id} jenis="kuis" />
+            </div>
+          ) : null}
         </div>
 
-        <div className="border-t border-indigo-500/20 bg-indigo-500/[0.04] px-1 dark:border-indigo-400/20 dark:bg-indigo-400/[0.06]">
+        <dl className="flex flex-wrap items-center gap-x-6 gap-y-1.5 border-t border-border/70 bg-muted/30 px-4 py-2 text-xs">
+          <Fact label="Guru pengampu" nilai={ruang.guruNama ?? "Belum ada guru"} />
+          <Fact label="KKM" nilai={String(ruang.kkm)} />
+          <Fact label="Siswa" nilai={`${ruang.jumlahSiswa} siswa`} />
+        </dl>
+
+        <div className="border-t border-border/70">
           <RuangTabs base={base} aktif={aktif} peran={peran} batas={false} />
         </div>
       </div>
@@ -168,55 +155,16 @@ export async function RuangShell({
 }
 
 /**
- * Border and icon tint for each fact box.
+ * One labelled fact in the room's fact row.
  *
- * Spelled out as whole class strings because Tailwind only sees literal text —
- * `border-${warna}-500/30` would be dropped from the build. The four hues are
- * cool except KKM's amber, which is the one number worth noticing.
+ * No icon and no coloured box: the label already says what the value is, so a
+ * tint would add a fourth focal point to a row that is meant to be read once.
  */
-const WARNA_INFO = {
-  emerald: {
-    kotak:
-      "border-emerald-600/25 bg-emerald-500/[0.06] dark:border-emerald-400/25 dark:bg-emerald-400/[0.08]",
-    ikon: "text-emerald-600 dark:text-emerald-400",
-  },
-  sky: {
-    kotak:
-      "border-sky-600/25 bg-sky-500/[0.06] dark:border-sky-400/25 dark:bg-sky-400/[0.08]",
-    ikon: "text-sky-600 dark:text-sky-400",
-  },
-  amber: {
-    kotak:
-      "border-amber-600/30 bg-amber-500/[0.07] dark:border-amber-400/25 dark:bg-amber-400/[0.08]",
-    ikon: "text-amber-600 dark:text-amber-400",
-  },
-  violet: {
-    kotak:
-      "border-violet-600/25 bg-violet-500/[0.06] dark:border-violet-400/25 dark:bg-violet-400/[0.08]",
-    ikon: "text-violet-600 dark:text-violet-400",
-  },
-} as const;
-
-/** One labelled fact inside the room card. */
-function Info({
-  warna,
-  ikon,
-  label,
-  nilai,
-}: {
-  warna: keyof typeof WARNA_INFO;
-  ikon: React.ReactNode;
-  label: string;
-  nilai: string;
-}) {
-  const tone = WARNA_INFO[warna];
+function Fact({ label, nilai }: { label: string; nilai: string }) {
   return (
-    <div className={cn("rounded-sm border px-2.5 py-1.5", tone.kotak)}>
-      <dt className="flex items-center gap-1 text-[0.7rem] tracking-wide text-muted-foreground uppercase">
-        <span className={tone.ikon}>{ikon}</span>
-        {label}
-      </dt>
-      <dd className="mt-0.5 truncate text-sm text-foreground">{nilai}</dd>
+    <div className="flex items-baseline gap-1.5">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="font-medium text-foreground">{nilai}</dd>
     </div>
   );
 }

@@ -8,7 +8,6 @@ import {
   ListVideoIcon,
   PaperclipIcon,
   PencilIcon,
-  StickyNoteIcon,
   VideoIcon,
 } from "lucide-react";
 
@@ -30,18 +29,6 @@ import {
   type PertemuanRow,
   type RuangHeader,
 } from "@/lib/ruang-belajar-shared";
-
-/**
- * Left edge of a meeting card.
- *
- * Two states only: a draft is invisible to students, so it earns the amber; a
- * published meeting is neutral-emerald. Anything finer (hadir, presensi open)
- * already has a badge inside the card and does not need a second encoding.
- */
-const GARIS_TERBIT = {
-  terbit: "bg-emerald-500",
-  draf: "bg-amber-500",
-} as const;
 
 /** One badge with the shared tone palette. */
 function Chip({
@@ -77,7 +64,7 @@ function Kotak({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-sm border border-border bg-card shadow-sm">
+    <section className="overflow-hidden rounded-sm border border-border bg-card">
       <h2 className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-xs font-medium text-foreground">
         <span className="text-muted-foreground">{ikon}</span>
         {judul}
@@ -165,14 +152,6 @@ export function TabMateri({
         </div>
 
         <aside className="space-y-3 lg:sticky lg:top-20">
-          {ruang.deskripsi ? (
-            <Kotak judul="Catatan guru" ikon={<StickyNoteIcon className="size-3.5" />}>
-              <p className="text-sm whitespace-pre-line text-muted-foreground">
-                {ruang.deskripsi}
-              </p>
-            </Kotak>
-          ) : null}
-
           <Kotak judul="Jadwal kelas daring" ikon={<CalendarClockIcon className="size-3.5" />}>
             {ruang.jadwal.length === 0 ? (
               <p className="text-sm text-muted-foreground">
@@ -251,27 +230,16 @@ function KartuPertemuan({
   // student to the material. Leaving the student's card plain would show them a
   // list of lessons they cannot open.
   const href = `${base}/pertemuan/${pertemuan.id}`;
-  // A meeting the student has already marked is dimmed rather than hidden —
-  // "done" is worth seeing at a glance without losing the ability to re-read it.
-  const redup = peran === "siswa" && pertemuan.selesai;
-
+  // "Sudah dipelajari" is said by a chip inside the card, not by dimming the
+  // whole card: fading text drops it below the contrast the rest of the page holds.
   return (
     <article
       className={cn(
-        "relative overflow-hidden rounded-sm border border-border bg-card shadow-sm transition-[box-shadow,opacity] hover:shadow-md",
-        redup && "opacity-70 hover:opacity-100",
+        "relative overflow-hidden rounded-sm border border-border bg-card transition-colors hover:border-foreground/25",
       )}
     >
-      <div
-        aria-hidden
-        className={cn(
-          "absolute inset-y-0 left-0 w-0.5",
-          pertemuan.terbit ? GARIS_TERBIT.terbit : GARIS_TERBIT.draf,
-        )}
-      />
-
       <div className="flex items-start gap-3 py-3 pr-3 pl-3.5">
-        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-sm bg-muted font-mono text-[0.7rem] font-medium text-muted-foreground tabular-nums">
+        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-sm bg-muted text-[0.7rem] font-medium text-muted-foreground tabular-nums">
           {String(pertemuan.urutan).padStart(2, "0")}
         </span>
 
@@ -346,7 +314,7 @@ function KartuPertemuan({
             {!pertemuan.terbit ? <Chip tone="kuning">Draf</Chip> : null}
 
             {pertemuan.adaMateri ? (
-              <Chip tone="ungu" icon={<FileTextIcon className="size-3" />}>
+              <Chip tone="netral" icon={<FileTextIcon className="size-3" />}>
                 Materi
               </Chip>
             ) : null}
@@ -358,8 +326,8 @@ function KartuPertemuan({
                 target="_blank"
                 rel="noreferrer noopener"
                 className={cn(
-                  "relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:brightness-95",
-                  TONE.biru,
+                  "relative inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 transition-colors hover:bg-muted",
+                  TONE.netral,
                 )}
                 title={url}
               >

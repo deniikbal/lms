@@ -74,9 +74,9 @@ export function RuangTabs({
             aria-current={current ? "page" : undefined}
             className={cn(
               "group relative flex shrink-0 flex-col items-center gap-0.5 px-2.5 py-2 text-[0.7rem] leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2 sm:text-sm",
-              "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:transition-colors",
+              "after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-sm after:transition-colors",
               current
-                ? "font-medium text-indigo-700 after:bg-indigo-600 dark:text-indigo-300 dark:after:bg-indigo-400"
+                ? "font-medium text-brand after:bg-brand"
                 : "text-muted-foreground after:bg-transparent hover:text-foreground",
             )}
           >
@@ -85,7 +85,7 @@ export function RuangTabs({
               className={cn(
                 "size-4 shrink-0 transition-colors sm:size-4",
                 current
-                  ? "text-indigo-600 dark:text-indigo-400"
+                  ? "text-brand"
                   : "text-muted-foreground/70 group-hover:text-foreground",
               )}
             />
