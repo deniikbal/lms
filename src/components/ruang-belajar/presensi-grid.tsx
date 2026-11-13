@@ -45,6 +45,7 @@ export function PresensiGrid({
   const [awal, setAwal] = useState<Peta>(() => petaAwal(siswa));
   const [nilai, setNilai] = useState<Peta>(() => petaAwal(siswa));
   const [error, setError] = useState<string | null>(null);
+  const [saring, setSaring] = useState<StatusPresensi | "belum" | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -53,6 +54,28 @@ export function PresensiGrid({
       ringkasPresensi(siswa.map((item) => ({ status: nilai[item.id] ?? null }))),
     [siswa, nilai],
   );
+
+  /**
+   * Baris yang tampil. Chip ringkasan di atas berlaku sebagai filter; nomor urut
+   * tetap memakai urutan kelas, bukan urutan hasil saringan, supaya guru tidak
+   * kehilangan patokan saat menyaring.
+   */
+  const tampil = useMemo(() => {
+    const nomor = siswa.map((item, indeks) => ({ ...item, no: indeks + 1 }));
+    if (saring === null) return nomor;
+    return nomor.filter((item) =>
+      saring === "belum"
+        ? (nilai[item.id] ?? null) === null
+        : (nilai[item.id] ?? null) === saring,
+    );
+  }, [siswa, nilai, saring]);
+
+  const labelSaring =
+    saring === "belum"
+      ? "belum diisi"
+      : saring
+        ? STATUS_PRESENSI[saring].label.toLowerCase()
+        : null;
 
   const berubah = useMemo(
     () =>
@@ -121,28 +144,54 @@ export function PresensiGrid({
 
         <div
           role="group"
-          aria-label="Ringkasan presensi"
+          aria-label="Saring menurut status presensi"
           className="flex flex-wrap items-center gap-1.5"
         >
-          {URUTAN.map((status) => (
-            <span
-              key={status}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
-                TONE[STATUS_PRESENSI[status].tone],
-              )}
-            >
-              {STATUS_PRESENSI[status].label} {ringkasan[status]}
-            </span>
-          ))}
-          <span
+          {URUTAN.map((status) => {
+            const dipilihSaring = saring === status;
+            return (
+              <button
+                key={status}
+                type="button"
+                aria-pressed={dipilihSaring}
+                title={`Tampilkan siswa berstatus ${STATUS_PRESENSI[status].label.toLowerCase()}`}
+                onClick={() => setSaring(dipilihSaring ? null : status)}
+                className={cn(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors",
+                  TONE[STATUS_PRESENSI[status].tone],
+                  dipilihSaring
+                    ? "outline-2 outline-offset-1 outline-foreground/50"
+                    : "hover:outline-1 hover:outline-offset-1 hover:outline-foreground/30",
+                )}
+              >
+                {STATUS_PRESENSI[status].label} {ringkasan[status]}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={saring === "belum"}
+            title="Tampilkan siswa yang belum diisi"
+            onClick={() => setSaring(saring === "belum" ? null : "belum")}
             className={cn(
-              "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums",
+              "inline-flex cursor-pointer items-center gap-1 rounded-sm px-1.5 py-0.5 text-[0.7rem] font-medium ring-1 tabular-nums transition-colors",
               TONE.netral,
+              saring === "belum"
+                ? "outline-2 outline-offset-1 outline-foreground/50"
+                : "hover:outline-1 hover:outline-offset-1 hover:outline-foreground/30",
             )}
           >
             Belum {ringkasan.belum}
-          </span>
+          </button>
+          {saring ? (
+            <button
+              type="button"
+              onClick={() => setSaring(null)}
+              className="cursor-pointer rounded-sm px-1.5 py-0.5 text-[0.7rem] text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Tampilkan semua
+            </button>
+          ) : null}
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -207,8 +256,14 @@ export function PresensiGrid({
                   Kelas ini belum punya siswa aktif.
                 </td>
               </tr>
+            ) : tampil.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                  Tidak ada siswa berstatus {labelSaring} di kelas ini.
+                </td>
+              </tr>
             ) : (
-              siswa.map((item, indeks) => {
+              tampil.map((item) => {
                 const aktif = nilai[item.id] ?? null;
                 return (
                   <tr
@@ -216,7 +271,7 @@ export function PresensiGrid({
                     className="border-b border-border/50 last:border-b-0 hover:bg-muted/30"
                   >
                     <td className="px-3 py-2 text-xs tabular-nums text-muted-foreground">
-                      {indeks + 1}
+                      {item.no}
                     </td>
                     <td className="px-2 py-2 text-foreground">{item.nama}</td>
                     <td className="hidden px-2 py-2 text-xs tabular-nums text-muted-foreground sm:table-cell">
