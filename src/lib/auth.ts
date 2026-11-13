@@ -12,6 +12,23 @@ export const auth = betterAuth({
   // sign-out karena origin check/CSRF gagal (baseURL tak cocok dengan domain).
   secret: process.env.BETTER_AUTH_SECRET,
 
+  /**
+   * Satu kelas login bersamaan lewat satu IP (NAT sekolah), sedangkan default
+   * Better Auth hanya 3 percobaan per 10 detik per IP: siswa keempat dan
+   * seterusnya kena 429 "Too many requests" walau kredensialnya benar. Batas
+   * di sini cukup longgar untuk 100 siswa per menit dari satu IP, masih terlalu
+   * lambat untuk menebak password secara bruteforce.
+   */
+  rateLimit: {
+    enabled: true,
+    window: 60,
+    max: 300,
+    customRules: {
+      "/sign-in/username": { window: 60, max: 100 },
+      "/sign-in/email": { window: 60, max: 100 },
+    },
+  },
+
   // Better Auth uses the built-in Kysely adapter for a raw `pg` pool.
   database: pool,
 

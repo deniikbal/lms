@@ -23,7 +23,7 @@ export default function LoginPage() {
       </Suspense>
       <LoginForm />
 
-      {/* Help for students: they sign in with their NISN, not an email. */}
+      {/* Help for students: they sign in with their NIS, not an email. */}
       <aside
         aria-label="Info login siswa"
         className="mt-5 rounded-lg border border-border/70 bg-muted/40 p-4"
@@ -35,9 +35,10 @@ export default function LoginPage() {
         <ul className="mt-2.5 space-y-1.5 text-xs leading-relaxed text-muted-foreground">
           <li>
             <strong className="font-medium text-foreground">
-              Masuk dengan NISN
+              Masuk dengan NIS
             </strong>{" "}
-            — tulis NISN Anda di kolom pertama, tidak perlu email.
+            tulis NIS Anda di kolom pertama, tidak perlu email. Password awal
+            sama dengan NIS Anda.
           </li>
           <li>
             <strong className="font-medium text-foreground">Password</strong>{" "}

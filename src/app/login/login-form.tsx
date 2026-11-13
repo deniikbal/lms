@@ -25,9 +25,9 @@ export function LoginForm() {
     const identifier = String(formData.get("identifier") ?? "").trim();
     const password = String(formData.get("password") ?? "");
 
-    // Staff sign in with their email or NIP, students with their NISN. Anything
+    // Staff sign in with their email or NIP, students with their NIS. Anything
     // with an "@" is treated as an email address; the rest goes to the username
-    // plugin, which is where NISN and NIP live.
+    // plugin, which is where NIS and NIP live.
     const { error: signInError } = identifier.includes("@")
       ? await signIn.email({ email: identifier, password })
       : await signIn.username({ username: identifier, password });
@@ -35,8 +35,10 @@ export function LoginForm() {
     if (signInError) {
       setError(
         signInError.status === 401
-          ? "Email/NISN/NIP atau password salah."
-          : (signInError.message ?? "Gagal masuk. Coba lagi."),
+          ? "Email/NIS/NIP atau password salah."
+          : signInError.status === 429
+            ? "Terlalu banyak percobaan masuk dari jaringan ini. Tunggu satu menit, lalu coba lagi."
+            : (signInError.message ?? "Gagal masuk. Coba lagi."),
       );
       setPending(false);
       return;
@@ -51,13 +53,13 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} noValidate>
       <FieldGroup>
         <Field>
-          <FieldLabel htmlFor="identifier">Email, NISN, atau NIP</FieldLabel>
+          <FieldLabel htmlFor="identifier">Email, NIS, atau NIP</FieldLabel>
           <Input
             id="identifier"
             name="identifier"
             type="text"
             autoComplete="username"
-            placeholder="nama@sekolah.sch.id, NISN, atau NIP"
+            placeholder="nama@sekolah.sch.id, NIS, atau NIP"
             required
           />
         </Field>
