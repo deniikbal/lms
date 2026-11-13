@@ -378,7 +378,8 @@ export type KuisRow = {
 export type AnggotaRow = {
   id: string;
   nama: string;
-  nisn: string | null;
+  /** `user.username`, which is the NIS students type to sign in. */
+  nis: string | null;
   jk: "L" | "P" | null;
 };
 

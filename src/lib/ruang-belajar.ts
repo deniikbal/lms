@@ -625,10 +625,10 @@ export async function listAnggota(kelasId: number): Promise<AnggotaRow[]> {
   const { rows } = await pool.query<{
     id: string;
     nama: string;
-    nisn: string | null;
+    nis: string | null;
     jk: "L" | "P" | null;
   }>(
-    `select id, name as nama, username as nisn, jk
+    `select id, name as nama, username as nis, jk
        from "user"
       where role = 'siswa' and aktif and kelas_id = $1
       order by name asc`,

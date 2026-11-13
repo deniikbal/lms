@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRightIcon, PencilIcon } from "lucide-react";
 
+import { AnggotaPanel } from "@/components/ruang-belajar/anggota-panel";
 import { BuatDialog, type TugasEdit } from "@/components/ruang-belajar/buat-dialog";
 import { DiskusiForm } from "@/components/ruang-belajar/diskusi-form";
 import { HapusTugas } from "@/components/ruang-belajar/hapus-tugas";
@@ -558,6 +559,13 @@ export function TabDiskusi({
 
 // ------------------------------------------------------------------- anggota
 
+/**
+ * Tab Anggota: who is in this room.
+ *
+ * The three facts that describe the class sit in one band instead of three equal
+ * cards, so the roster below stays the page's focal point rather than competing
+ * with widgets that each hold a single word.
+ */
 export function TabAnggota({
   anggota,
   ruang,
@@ -565,49 +573,48 @@ export function TabAnggota({
   anggota: AnggotaRow[];
   ruang: RuangHeader;
 }) {
+  const laki = anggota.filter((murid) => murid.jk === "L").length;
+  const perempuan = anggota.filter((murid) => murid.jk === "P").length;
+
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "Guru pengampu", nilai: ruang.guruNama ?? "Belum ditentukan" },
-          { label: "Jumlah siswa", nilai: `${anggota.length} siswa` },
-          { label: "Tahun ajaran", nilai: `${ruang.taNama} ${ruang.taSemester}` },
-        ].map((item) => (
-          <div
-            key={item.label}
-            className="rounded-sm border border-border/70 bg-card px-4 py-3"
-          >
-            <p className="text-xs text-muted-foreground">{item.label}</p>
-            <p className="mt-0.5 text-sm font-medium text-foreground">
-              {item.nilai}
-            </p>
+      <header className="rounded-sm border border-border bg-card px-4 py-3">
+        <dl className="flex flex-wrap items-start gap-x-8 gap-y-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Guru pengampu</dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {ruang.guruNama ?? "Belum ditentukan"}
+            </dd>
           </div>
-        ))}
-      </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Tahun ajaran</dt>
+            <dd className="mt-0.5 text-sm font-medium text-foreground">
+              {ruang.taNama} {ruang.taSemester}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Siswa aktif</dt>
+            <dd className="mt-0.5 text-sm font-medium text-brand tabular-nums">
+              {anggota.length}
+              <span className="ml-2 text-xs font-normal text-muted-foreground">
+                {laki} laki-laki, {perempuan} perempuan
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </header>
 
-      <Panel judul="Siswa" keterangan={`${anggota.length} siswa aktif`}>
+      <Panel
+        judul="Daftar siswa"
+        keterangan="NIS di kolom ketiga adalah yang dipakai siswa untuk masuk"
+      >
         {anggota.length === 0 ? (
-          <Kosong>Belum ada siswa di kelas ini.</Kosong>
+          <Kosong>
+            Belum ada siswa di kelas ini. Siswa muncul di sini setelah admin
+            memasukkan mereka ke kelas yang terhubung dengan ruang ini.
+          </Kosong>
         ) : (
-          <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {anggota.map((murid) => (
-              <li
-                key={murid.id}
-                className="flex items-center gap-2.5 rounded-sm border border-border/70 bg-card px-3 py-2"
-              >
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-muted text-[0.65rem] font-semibold text-muted-foreground">
-                  {inisial(murid.nama)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-foreground">{murid.nama}</p>
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    {murid.nisn ?? "—"}
-                    {murid.jk ? ` · ${murid.jk}` : ""}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <AnggotaPanel anggota={anggota} />
         )}
       </Panel>
     </div>
