@@ -1352,8 +1352,8 @@ export async function ubahTugas({
             terbit = $8,
             lampiran_nama = $9,
             lampiran_url = $10,
-            tipe_kerja = coalesce($11, t.tipe_kerja),
-            nilai_sama = coalesce($12, t.nilai_sama)
+            tipe_kerja = coalesce($11, tugas.tipe_kerja),
+            nilai_sama = coalesce($12, tugas.nilai_sama)
       where id = $1 and ruang_id = $2`,
     [tugasId, ruangId, judul, deskripsi, tenggat, tipe, bolehTerlambat, terbit, lampiranNama, lampiranUrl, tipeKerja ?? null, nilaiSama ?? null],
   );
