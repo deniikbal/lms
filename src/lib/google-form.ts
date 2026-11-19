@@ -50,7 +50,7 @@ export function urlConnect(state: string): string {
 export async function statusGoogle(guruId: string): Promise<boolean> {
   if (!googleTersedia()) return false;
   const { rows } = await pool.query(
-    `select 1 from account where "userId" = $1 and providerId = $2 and "refreshToken" is not null limit 1`,
+    `select 1 from account where "userId" = $1 and "providerId" = $2 and "refreshToken" is not null limit 1`,
     [guruId, PROVIDER],
   );
   return rows.length > 0;
