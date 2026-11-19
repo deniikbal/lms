@@ -19,6 +19,11 @@ import type { SoalRow } from "@/lib/ruang-belajar-shared";
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
 const URL_APP = process.env.APP_URL ?? "https://lms.bethari.my.id";
+/**
+ * Fallback refresh token (satu akun pemilik, diisi .env). Guru tanpa koneksi
+ * sendiri memakai token ini, jadi form dibuat di akun pemilik token.
+ */
+const TOKEN_CADANGAN = process.env.GOOGLE_FORMS_REFRESH_TOKEN ?? "";
 const CALLBACK = `${URL_APP}/api/google/callback`;
 
 const SCOPES = [
@@ -49,6 +54,7 @@ export function urlConnect(state: string): string {
 
 export async function statusGoogle(guruId: string): Promise<boolean> {
   if (!googleTersedia()) return false;
+  if (TOKEN_CADANGAN) return true;
   const { rows } = await pool.query(
     `select 1 from account where "userId" = $1 and "providerId" = $2 and "refreshToken" is not null limit 1`,
     [guruId, PROVIDER],
@@ -70,21 +76,24 @@ async function bacaAkun(guruId: string): Promise<BarisToken | null> {
 
 const cacheToken = new Map<string, { token: string; kedaluwarsa: number }>();
 
-/** Access token for the teacher's Google account, refreshed when stale. */
+/** Access token for the teacher's Google account, refreshed when stale.
+ *  Falls back to the shared GOOGLE_FORMS_REFRESH_TOKEN from .env. */
 export async function tokenGoogle(guruId: string): Promise<string | null> {
   const gudang = cacheToken.get(guruId);
   if (gudang && Date.now() < gudang.kedaluwarsa) return gudang.token;
 
   const akun = await bacaAkun(guruId);
-  if (!akun?.refresh_token) return null;
+  const refresh = akun?.refresh_token || TOKEN_CADANGAN;
+  if (!refresh) return null;
 
-  const masihHidup = akun.access_token && akun.expires_at && akun.expires_at.getTime() - 60_000 > Date.now();
-  if (masihHidup) return akun.access_token!;
+  const masihHidup =
+    akun?.access_token && akun.expires_at && akun.expires_at.getTime() - 60_000 > Date.now();
+  if (masihHidup) return akun!.access_token!;
 
   const body = new URLSearchParams({
     client_id: CLIENT_ID,
     client_secret: CLIENT_SECRET,
-    refresh_token: akun.refresh_token,
+    refresh_token: refresh,
     grant_type: "refresh_token",
   });
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -98,11 +107,13 @@ export async function tokenGoogle(guruId: string): Promise<string | null> {
 
   const kedaluwarsa = Date.now() + (data.expires_in ?? 3600) * 1000 - 120_000;
   cacheToken.set(guruId, { token: data.access_token, kedaluwarsa });
-  await pool.query(
-    `update account set "accessToken" = $3, "accessTokenExpiresAt" = $4, "updatedAt" = now()
-      where "userId" = $1 and providerId = $2`,
-    [guruId, PROVIDER, data.access_token, new Date(kedaluwarsa)],
-  );
+  if (akun?.refresh_token) {
+    await pool.query(
+      `update account set "accessToken" = $3, "accessTokenExpiresAt" = $4, "updatedAt" = now()
+        where "userId" = $1 and providerId = $2`,
+      [guruId, PROVIDER, data.access_token, new Date(kedaluwarsa)],
+    );
+  }
   return data.access_token;
 }
 
