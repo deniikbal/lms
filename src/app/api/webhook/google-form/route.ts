@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 
 import { prosesWebhook } from "@/lib/google-form";
 
-export const runtime = "nodejs";
-
 /**
  * Receives one Google Form submission from the quiz's Apps Script.
  *
