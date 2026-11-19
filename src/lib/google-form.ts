@@ -1,21 +1,159 @@
-import { randomBytes } from "node:crypto";
-
 import { pool } from "@/lib/db";
 import { kunciTersimpan, nilaiPercobaan, pilihanTersimpan } from "@/lib/ruang-belajar-shared";
 import type { SoalRow } from "@/lib/ruang-belajar-shared";
 
 /**
- * Google Form integration, webhook model.
+ * Google Form integration, OAuth model.
  *
- * A teacher turns a bank topic into a quiz that is answered in Google Forms:
- * the LMS creates the quiz row (with a per-quiz webhook token), hands back an
- * Apps Script that builds the form and installs an onFormSubmit trigger, and
- * the script posts each response here. Scores for multiple choice are computed
- * by the LMS from the stored answer key — the same path an in-app attempt
- * takes — so a Google Form quiz and a normal quiz read identically everywhere.
+ * The teacher connects their Google account once (refresh token stored in the
+ * `account` table); after that the LMS itself creates the form from a bank
+ * topic via the Forms API and pulls responses back. Matching to a student is
+ * by the NIS question the form always carries first; the score is computed by
+ * the LMS from the stored answer key, the same path an in-app attempt takes.
+ *
+ * Setup needs GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET in .env and the Forms
+ * API enabled on that Cloud project. Redirect URI:
+ *   https://lms.bethari.my.id/api/google/callback
  */
 
-const WEBHOOK_JALUR = "/api/webhook/google-form";
+const CLIENT_ID = process.env.GOOGLE_CLIENT_ID ?? "";
+const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
+const URL_APP = process.env.APP_URL ?? "https://lms.bethari.my.id";
+const CALLBACK = `${URL_APP}/api/google/callback`;
+
+const SCOPES = [
+  "https://www.googleapis.com/auth/forms.body",
+  "https://www.googleapis.com/auth/forms.responses.readonly",
+].join(" ");
+
+const PROVIDER = "google-forms";
+
+/** Whether the server is configured for the Google flow at all. */
+export function googleTersedia(): boolean {
+  return CLIENT_ID !== "" && CLIENT_SECRET !== "";
+}
+
+export function urlConnect(state: string): string {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    redirect_uri: CALLBACK,
+    response_type: "code",
+    scope: SCOPES,
+    access_type: "offline",
+    prompt: "consent",
+    include_granted_scopes: "true",
+    state,
+  });
+  return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+}
+
+export async function statusGoogle(guruId: string): Promise<boolean> {
+  if (!googleTersedia()) return false;
+  const { rows } = await pool.query(
+    `select 1 from account where "userId" = $1 and providerId = $2 and "refreshToken" is not null limit 1`,
+    [guruId, PROVIDER],
+  );
+  return rows.length > 0;
+}
+
+type BarisToken = { refresh_token: string | null; access_token: string | null; expires_at: Date | null };
+
+async function bacaAkun(guruId: string): Promise<BarisToken | null> {
+  const { rows } = await pool.query<BarisToken>(
+    `select "refreshToken" as refresh_token, "accessToken" as access_token,
+            "accessTokenExpiresAt" as expires_at
+       from account where "userId" = $1 and providerId = $2 limit 1`,
+    [guruId, PROVIDER],
+  );
+  return rows[0] ?? null;
+}
+
+const cacheToken = new Map<string, { token: string; kedaluwarsa: number }>();
+
+/** Access token for the teacher's Google account, refreshed when stale. */
+export async function tokenGoogle(guruId: string): Promise<string | null> {
+  const gudang = cacheToken.get(guruId);
+  if (gudang && Date.now() < gudang.kedaluwarsa) return gudang.token;
+
+  const akun = await bacaAkun(guruId);
+  if (!akun?.refresh_token) return null;
+
+  const masihHidup = akun.access_token && akun.expires_at && akun.expires_at.getTime() - 60_000 > Date.now();
+  if (masihHidup) return akun.access_token!;
+
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    refresh_token: akun.refresh_token,
+    grant_type: "refresh_token",
+  });
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) return null;
+  const data = (await res.json()) as { access_token?: string; expires_in?: number };
+  if (!data.access_token) return null;
+
+  const kedaluwarsa = Date.now() + (data.expires_in ?? 3600) * 1000 - 120_000;
+  cacheToken.set(guruId, { token: data.access_token, kedaluwarsa });
+  await pool.query(
+    `update account set "accessToken" = $3, "accessTokenExpiresAt" = $4, "updatedAt" = now()
+      where "userId" = $1 and providerId = $2`,
+    [guruId, PROVIDER, data.access_token, new Date(kedaluwarsa)],
+  );
+  return data.access_token;
+}
+
+/** Exchanges the consent code for tokens and stores the refresh token. */
+export async function simpanKodeOauth(guruId: string, kode: string): Promise<boolean> {
+  const body = new URLSearchParams({
+    client_id: CLIENT_ID,
+    client_secret: CLIENT_SECRET,
+    code: kode,
+    grant_type: "authorization_code",
+    redirect_uri: CALLBACK,
+  });
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) return false;
+  const data = (await res.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+  };
+  if (!data.refresh_token || !data.access_token) return false;
+
+  const kedaluwarsa = new Date(Date.now() + (data.expires_in ?? 3600) * 1000 - 120_000);
+  await pool.query(
+    `insert into account (id, "accountId", providerId, "userId", "accessToken", "refreshToken", "accessTokenExpiresAt", "updatedAt")
+     values ($1, $1, $2, $3, $4, $5, $6, now())
+     on conflict (id) do update
+       set "accessToken" = excluded."accessToken",
+           "refreshToken" = excluded."refreshToken",
+           "accessTokenExpiresAt" = excluded."accessTokenExpiresAt",
+           "updatedAt" = now()`,
+    [`gf-${guruId}`, PROVIDER, guruId, data.access_token, data.refresh_token, kedaluwarsa],
+  );
+  cacheToken.delete(guruId);
+  return true;
+}
+
+// ------------------------------------------------------------------ form API
+
+async function formsApi(token: string, jalur: string, metode: string, isi?: unknown): Promise<unknown> {
+  const res = await fetch(`https://forms.googleapis.com/v1/${jalur}`, {
+    method: metode,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: isi === undefined ? undefined : JSON.stringify(isi),
+  });
+  if (!res.ok) throw new Error(`Forms API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
 
 export type RuangPilihan = {
   id: number;
@@ -41,102 +179,36 @@ export async function listRuangUntukForm(guruId: string, mapelId: number | null)
   return rows.map((row) => ({ id: row.id, kelasNama: row.kelas_nama, mapelNama: row.mapel_nama }));
 }
 
-export type KuisGoogleBaru = {
-  kuisId: number;
-  token: string;
-  script: string;
+type SoalForm = {
+  soalId: number;
+  jenis: "pg" | "esai";
+  pertanyaan: string;
+  opsi: string[];
+  /** Option text of the key, null for an essay. */
+  kunciTeks: string | null;
+  bobot: number;
 };
-
-type SoalScript = {
-  t: string;
-  o: string[];
-  /** Index of the correct option inside `o`; -1 for an essay. */
-  k: number;
-  b: number;
-  e: boolean;
-};
-
-/** Builds the Apps Script text with the quiz's questions and token embedded. */
-export function buatScriptAppsScript(urlApp: string, token: string, judul: string, soal: SoalScript[]): string {
-  const data = JSON.stringify(soal, null, 1);
-  return `// Script Google Form → LMS (token kuis: ${token.slice(0, 6)}…)
-// Cara pakai: script.google.com → Proyek baru → tempel semua → jalankan buatDanPasang
-// sekali (izinkan akses saat diminta). URL form muncul di popup, tempel ke LMS.
-var WEBHOOK = "${urlApp}${WEBHOOK_JALUR}";
-var TOKEN = "${token}";
-var JUDUL = ${JSON.stringify(judul)};
-var SOAL = ${data};
-
-function buatDanPasang() {
-  var form = FormApp.create(JUDUL)
-    .setIsQuiz(true)
-    .setCollectEmail(false)
-    .setLimitOneResponsePerUser(true);
-  form.addTextItem().setTitle("NIS").setRequired(true);
-  SOAL.forEach(function (s) {
-    if (s.e) {
-      form.addParagraphTextItem().setTitle(s.t).setRequired(true);
-      return;
-    }
-    var item = form.addMultipleChoiceItem();
-    var opsi = s.o.map(function (v, j) { return item.createChoice(v, j === s.k); });
-    item.setTitle(s.t).setChoices(opsi).setPoints(s.b).setRequired(true);
-  });
-  ScriptApp.newTrigger("kirimKeLms").forForm(form).onFormSubmit().create();
-  Logger.log("URL form: " + form.getPublishedUrl());
-  SpreadsheetApp.getUi().alert("Form dibuat!\\n\\nSalin URL ini ke LMS:\\n" + form.getPublishedUrl());
-}
-
-function kirimKeLms(e) {
-  var peta = {};
-  SOAL.forEach(function (s, i) { peta[s.t] = i; });
-  var nis = "";
-  var jawaban = [];
-  e.response.getItemResponses().forEach(function (ir) {
-    var judul = ir.getItem().getTitle();
-    if (judul === "NIS") { nis = String(ir.getResponse()).trim(); return; }
-    var i = peta[judul];
-    if (i === undefined) return;
-    var s = SOAL[i];
-    if (s.e) {
-      jawaban.push({ i: i, teks: String(ir.getResponse() || "") });
-    } else {
-      var j = s.o.indexOf(String(ir.getResponse() || ""));
-      jawaban.push({ i: i, huruf: j >= 0 ? String.fromCharCode(65 + j) : null });
-    }
-  });
-  var hasil = UrlFetchApp.fetch(WEBHOOK, {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify({ token: TOKEN, nis: nis, jawaban: jawaban }),
-    muteHttpExceptions: true,
-  });
-  var balikan = hasil.getResponseCode() === 200 ? JSON.parse(hasil.getContentText()) : { ok: false };
-  if (!balikan.ok) {
-    MailApp.sendEmail(Session.getEffectiveUser(), "Sinkron LMS gagal",
-      "Ada jawaban yang tidak masuk LMS (NIS: " + nis + ").\\n" + hasil.getContentText());
-  }
-}`;
-}
 
 /**
- * Creates the draft quiz, copies the topic's questions into it, and returns the
- * script. The quiz stays unpublished until the teacher fills in the schedule in
- * the normal quiz editor.
+ * Creates the draft quiz, copies the topic's questions, builds the Google Form
+ * and links everything back. The form's first question is always NIS.
  */
 export async function buatKuisGoogleForm(
   guruId: string,
   topikId: number,
   ruangId: number,
   judul: string,
-): Promise<{ ok: true; data: KuisGoogleBaru } | { ok: false; error: string }> {
+): Promise<{ ok: true; kuisId: number; formUrl: string } | { ok: false; error: string }> {
   const bersih = judul.trim();
   if (!bersih || bersih.length > 120) {
     return { ok: false, error: "Judul wajib diisi (maks. 120 karakter)." };
   }
 
-  const { rows: topik } = await pool.query<{ nama: string; mapel_id: number | null }>(
-    `select nama, mapel_id from topik_bank where id = $2 and guru_id = $1`,
+  const token = await tokenGoogle(guruId);
+  if (!token) return { ok: false, error: "Hubungkan akun Google dulu." };
+
+  const { rows: topik } = await pool.query<{ nama: string }>(
+    `select nama from topik_bank where id = $2 and guru_id = $1`,
     [guruId, topikId],
   );
   if (!topik[0]) return { ok: false, error: "Topik tidak ditemukan di bank Anda." };
@@ -161,152 +233,171 @@ export async function buatKuisGoogleForm(
   );
   if (soalBank.length === 0) return { ok: false, error: "Topik itu belum punya soal." };
 
-  const token = randomBytes(24).toString("hex");
-
-  const client = await pool.connect();
-  let kuisId = 0;
-  try {
-    await client.query("begin");
-    const { rows } = await client.query<{ id: number }>(
-      `insert into kuis (ruang_id, judul, webhook_token)
-       values ($1, $2, $3) returning id`,
-      [ruangId, bersih, token],
-    );
-    kuisId = rows[0].id;
-
-    for (let urutan = 0; urutan < soalBank.length; urutan += 1) {
-      const s = soalBank[urutan];
-      const pilihan = s.jenis === "pg" ? pilihanTersimpan(s.pilihan) : {};
-      await client.query(
-        `insert into soal (kuis_id, pertanyaan, pilihan, jawaban, bobot, urutan, jenis, bank_soal_id)
-         values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8)`,
-        [
-          kuisId,
-          s.pertanyaan,
-          JSON.stringify(pilihan),
-          s.jenis === "pg" ? kunciTersimpan(pilihan, s.jawaban) : null,
-          s.bobot,
-          urutan + 1,
-          s.jenis,
-          s.id,
-        ],
-      );
-    }
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  const soalScript: SoalScript[] = soalBank.map((s) => {
+  const soalForm: SoalForm[] = soalBank.map((s) => {
     const pilihan = s.jenis === "pg" ? pilihanTersimpan(s.pilihan) : {};
-    const opsi = Object.keys(pilihan)
-      .sort()
-      .map((huruf) => pilihan[huruf]);
+    const kunci = s.jenis === "pg" ? kunciTersimpan(pilihan, s.jawaban) : null;
     return {
-      t: s.pertanyaan,
-      o: opsi,
-      k: s.jenis === "pg" && s.jawaban ? opsi.indexOf(pilihan[s.jawaban]) : -1,
-      b: s.bobot,
-      e: s.jenis === "esai",
+      soalId: s.id,
+      jenis: s.jenis === "pg" ? "pg" : "esai",
+      pertanyaan: s.pertanyaan,
+      opsi: Object.keys(pilihan).sort().map((huruf) => pilihan[huruf]),
+      kunciTeks: kunci ? pilihan[kunci] ?? null : null,
+      bobot: s.bobot,
     };
   });
 
-  const urlApp = process.env.APP_URL ?? "https://lms.bethari.my.id";
-  return {
-    ok: true,
-    data: { kuisId, token, script: buatScriptAppsScript(urlApp, token, bersih, soalScript) },
-  };
-}
+  // 1. Create the empty form, 2. turn on quiz mode, 3. add the items.
+  const form = (await formsApi(token, "forms", "POST", {
+    info: { title: bersih, documentTitle: bersih },
+  })) as { formId?: string; responderUri?: string };
+  if (!form.formId) return { ok: false, error: "Google menolak pembuatan form." };
 
-/** Saves the form URL the teacher copied out of the Apps Script popup. */
-export async function simpanFormUrl(
-  guruId: string,
-  kuisId: number,
-  url: string,
-): Promise<{ ok: boolean; error?: string }> {
-  const bersih = url.trim();
-  if (bersih && !/^https:\/\/docs\.google\.com\/forms\//.test(bersih)) {
-    return { ok: false, error: "Tempel URL form Google (docs.google.com/forms/…)." };
-  }
-  const { rowCount } = await pool.query(
-    `update kuis q
-        set form_url = $3, updated_at = now()
-       from ruang r
-      where q.id = $2 and q.ruang_id = r.id and r.guru_id = $1`,
-    [guruId, kuisId, bersih || null],
-  );
-  if (rowCount === 0) return { ok: false, error: "Kuis tidak ditemukan." };
-  return { ok: true };
-}
+  try {
+    await formsApi(token, `forms/${form.formId}`, "PATCH", {
+      settings: { quizSettings: { isQuiz: true } },
+      updateMask: "settings.quizSettings.isQuiz",
+    });
 
-export type HasilWebhook =
-  | { ok: true; nama: string; nilai: number | null }
-  | { ok: false; alasan: "token" | "nis" | "bentuk" };
+    const permintaan: unknown[] = [
+      {
+        createItem: {
+          item: {
+            title: "NIS",
+            description: "Isi Nomor Induk Siswa Anda",
+            textItem: {},
+            required: true,
+          },
+          location: { index: 0 },
+        },
+      },
+    ];
+    soalForm.forEach((s, i) => {
+      const question = s.jenis === "pg"
+        ? {
+            choiceQuestion: { type: "RADIO", options: s.opsi.map((value) => ({ value })), shuffle: false },
+            grading: {
+              pointValue: s.bobot,
+              correctAnswers: { answers: [{ value: s.kunciTeks }] },
+            },
+          }
+        : {
+            textQuestion: { paragraph: true },
+            grading: { pointValue: s.bobot },
+          };
+      permintaan.push({
+        createItem: {
+          item: {
+            title: s.pertanyaan,
+            questionItem: { question, required: true },
+          },
+          location: { index: i + 1 },
+        },
+      });
+    });
 
-/**
- * Records one form submission.
- *
- * Answers arrive keyed by question index (the order the script added them),
- * which is the order the LMS copied them in. The attempt is upserted so an
- * edited response replaces the earlier one, then the score is recomputed with
- * the same function an in-app attempt uses — essays stay null until the teacher
- * corrects them in the LMS.
- */
-export async function prosesWebhook(
-  token: string,
-  nis: string,
-  jawabanMasuk: { i: number; huruf: string | null; teks: string | null }[],
-): Promise<HasilWebhook> {
-  const { rows: kuis } = await pool.query<{
-    id: number;
-    kelas_id: number | null;
-  }>(
-    `select q.id, r.kelas_id
-       from kuis q join ruang r on r.id = q.ruang_id
-      where q.webhook_token = $1`,
-    [token],
-  );
-  if (!kuis[0]) return { ok: false, alasan: "token" };
-  const kuisId = kuis[0].id;
+    const hasil = (await formsApi(token, `forms/${form.formId}:batchUpdate`, "POST", {
+      requests: permintaan,
+    })) as { replies?: { createItem?: { itemId?: string } }[] };
 
-  const { rows: soal } = await pool.query<{
-    id: number;
-    jenis: string;
-    jawaban: string | null;
-    bobot: number;
-  }>(`select id, jenis, jawaban, bobot from soal where kuis_id = $1 order by urutan asc, id asc`, [
-    kuisId,
-  ]);
+    // The NIS item is reply 0; the questions follow in the order sent.
+    const idItemNis = hasil.replies?.[0]?.createItem?.itemId ?? null;
+    const petaSoal: Record<string, number> = {};
+    soalForm.forEach((s, i) => {
+      const itemId = hasil.replies?.[i + 1]?.createItem?.itemId;
+      if (itemId) petaSoal[itemId] = s.soalId;
+    });
 
-  const jawaban: Record<string, string> = {};
-  for (const item of jawabanMasuk) {
-    const s = soal[item.i];
-    if (!s) continue;
-    if (s.jenis === "pg") {
-      if (item.huruf && /^[A-E]$/.test(item.huruf)) jawaban[String(s.id)] = item.huruf;
-    } else if (item.teks) {
-      jawaban[String(s.id)] = item.teks.slice(0, 5000);
+    // 4. The quiz row, with the topic's questions copied into it.
+    const client = await pool.connect();
+    let kuisId = 0;
+    try {
+      await client.query("begin");
+      const { rows } = await client.query<{ id: number }>(
+        `insert into kuis (ruang_id, judul, form_id, form_url, form_items)
+         values ($1, $2, $3, $4, $5::jsonb) returning id`,
+        [
+          ruangId,
+          bersih,
+          form.formId,
+          form.responderUri ?? null,
+          JSON.stringify({ nis: idItemNis, soal: petaSoal }),
+        ],
+      );
+      kuisId = rows[0].id;
+
+      for (let urutan = 0; urutan < soalBank.length; urutan += 1) {
+        const s = soalBank[urutan];
+        const pilihan = s.jenis === "pg" ? pilihanTersimpan(s.pilihan) : {};
+        await client.query(
+          `insert into soal (kuis_id, pertanyaan, pilihan, jawaban, bobot, urutan, jenis, bank_soal_id)
+           values ($1, $2, $3::jsonb, $4, $5, $6, $7, $8)`,
+          [
+            kuisId,
+            s.pertanyaan,
+            JSON.stringify(pilihan),
+            s.jenis === "pg" ? kunciTersimpan(pilihan, s.jawaban) : null,
+            s.bobot,
+            urutan + 1,
+            s.jenis,
+            s.id,
+          ],
+        );
+      }
+      await client.query("commit");
+    } catch (error) {
+      await client.query("rollback");
+      throw error;
+    } finally {
+      client.release();
     }
-  }
 
+    return {
+      ok: true,
+      kuisId,
+      formUrl: form.responderUri ?? `https://docs.google.com/forms/d/${form.formId}/edit`,
+    };
+  } catch (error) {
+    // The empty form exists but the LMS never linked it — delete it so the
+    // teacher's Drive is not littered with orphans, then surface the error.
+    await fetch(`https://forms.googleapis.com/v1/forms/${form.formId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => undefined);
+    throw error;
+  }
+}
+
+export type HasilSinkron =
+  | { ok: true; baru: number; diperbarui: number; tanpaNis: number }
+  | { ok: false; perluHubung?: boolean; error: string };
+
+/** Upserts one attempt, preserving essay scores already given. */
+async function catatPercobaan(
+  kuisId: number,
+  soal: { id: number; jenis: string; jawaban: string | null; bobot: number }[],
+  nis: string,
+  kelasId: number | null,
+  jawaban: Record<string, string>,
+): Promise<"baru" | "diperbarui" | "nis"> {
   const { rows: siswa } = await pool.query<{ id: string; name: string }>(
     `select id, name from "user"
       where role = 'siswa' and aktif and username = $1
         and ($2::int is null or kelas_id = $2)
       limit 1`,
-    [nis, kuis[0].kelas_id],
+    [nis, kelasId],
   );
-  if (!siswa[0]) return { ok: false, alasan: "nis" };
+  if (!siswa[0]) return "nis";
 
-  const nilaiEsai: Record<string, number> = {};
   const nilai = nilaiPercobaan(
     soal.map((s) => ({ id: s.id, jenis: s.jenis as SoalRow["jenis"], bobot: s.bobot, jawaban: s.jawaban })),
     jawaban,
-    nilaiEsai,
+    {},
   );
+
+  const { rows: ada } = await pool.query(`select 1 from percobaan where kuis_id = $1 and siswa_id = $2`, [
+    kuisId,
+    siswa[0].id,
+  ]);
 
   await pool.query(
     `insert into percobaan (kuis_id, siswa_id, mulai, selesai, nilai, jawaban, nilai_esai)
@@ -317,6 +408,93 @@ export async function prosesWebhook(
            nilai_esai = percobaan.nilai_esai`,
     [kuisId, siswa[0].id, nilai, JSON.stringify(jawaban)],
   );
+  return ada.length > 0 ? "diperbarui" : "baru";
+}
 
-  return { ok: true, nama: siswa[0].name, nilai };
+/**
+ * Pulls every form response into `percobaan`.
+ *
+ * Idempotent: responses already recorded are simply upserted again, so calling
+ * this on every page load is safe. The form may also hand back Google's own
+ * quiz score, but the LMS deliberately recomputes from its own answer key.
+ */
+export async function sinkronJawabanForm(kuisId: number): Promise<HasilSinkron> {
+  const { rows: kuis } = await pool.query<{
+    form_id: string | null;
+    form_items: unknown;
+    kelas_id: number | null;
+    guru_id: string;
+  }>(
+    `select q.form_id, q.form_items, r.kelas_id, r.guru_id
+       from kuis q join ruang r on r.id = q.ruang_id
+      where q.id = $1`,
+    [kuisId],
+  );
+  const baris = kuis[0];
+  if (!baris?.form_id) return { ok: false, error: "Kuis ini tidak tertaut Google Form." };
+
+  const token = await tokenGoogle(baris.guru_id);
+  if (!token) return { ok: false, perluHubung: true, error: "Akun Google guru belum terhubung." };
+
+  const peta = baris.form_items as { nis?: string; soal?: Record<string, number> } | null;
+  if (!peta?.nis || !peta.soal) return { ok: false, error: "Pemetaan soal form tidak lengkap." };
+
+  const { rows: soal } = await pool.query<{
+    id: number;
+    jenis: string;
+    pilihan: unknown;
+    jawaban: string | null;
+    bobot: number;
+  }>(`select id, jenis, pilihan, jawaban, bobot from soal where kuis_id = $1 order by urutan asc, id asc`, [
+    kuisId,
+  ]);
+  // Option text → letter, so a form answer ("Laju reaksi") scores like "A".
+  const teksKeHuruf = new Map<number, Map<string, string>>();
+  for (const s of soal) {
+    if (s.jenis !== "pg") continue;
+    const pilihan = pilihanTersimpan(s.pilihan);
+    const balik = new Map<string, string>();
+    for (const [huruf, teks] of Object.entries(pilihan)) balik.set(teks, huruf);
+    teksKeHuruf.set(s.id, balik);
+  }
+
+  const data = (await formsApi(
+    token,
+    `forms/${baris.form_id}/responses?pageSize=500`,
+    "GET",
+  )) as {
+    responses?: {
+      answers?: Record<string, { answers?: { value?: string }[] }>;
+    }[];
+  };
+
+  let baru = 0;
+  let diperbarui = 0;
+  let tanpaNis = 0;
+
+  for (const respons of data.responses ?? []) {
+    const jawabanApi = respons.answers ?? {};
+    const nis = (jawabanApi[peta.nis]?.answers?.[0]?.value ?? "").trim();
+    if (!nis) {
+      tanpaNis += 1;
+      continue;
+    }
+
+    const jawaban: Record<string, string> = {};
+    for (const [itemId, isi] of Object.entries(jawabanApi)) {
+      const soalId = peta.soal[itemId];
+      if (!soalId) continue;
+      const teks = isi.answers?.[0]?.value;
+      if (!teks) continue;
+      const huruf = teksKeHuruf.get(soalId)?.get(teks);
+      jawaban[String(soalId)] = huruf ?? teks.slice(0, 5000);
+    }
+
+    const hasil = await catatPercobaan(kuisId, soal, nis.slice(0, 32), baris.kelas_id, jawaban);
+    if (hasil === "baru") baru += 1;
+    else if (hasil === "diperbarui") diperbarui += 1;
+    else tanpaNis += 1;
+  }
+
+  return { ok: true, baru, diperbarui, tanpaNis };
 }

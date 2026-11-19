@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { KotakAngka } from "@/components/kotak-angka";
+import { TombolSinkronForm } from "@/components/ruang-belajar/tombol-sinkron-form";
 import { TabelHasil } from "@/components/ruang-belajar/tabel-hasil";
 import { TONE } from "@/components/ruang-belajar/tone";
 import { WARNA_KUIS } from "@/components/ruang-belajar/warna-kuis";
@@ -177,6 +178,7 @@ export function LembarHasilKuis({
           </div>
 
           <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {kuis.formUrl ? <TombolSinkronForm ruangId={ruang.id} kuisId={kuis.id} /> : null}
             <Button size="sm" nativeButton={false} render={<Link href={`${base}/kuis/${kuis.id}/ubah`} />}>
               <PencilIcon />
               Ubah kuis

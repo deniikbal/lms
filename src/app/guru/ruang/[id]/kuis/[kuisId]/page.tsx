@@ -11,6 +11,7 @@ import {
   listPercobaan,
   listSoal,
 } from "@/lib/ruang-belajar";
+import { sinkronJawabanForm } from "@/lib/google-form";
 import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -47,6 +48,12 @@ async function Isi({
 
   const kuis = await getKuisDetail(ruangId, kid);
   if (!kuis) notFound();
+
+  // A Google Form quiz has no in-app attempts: pull whatever arrived since the
+  // last visit before reading the table. Idempotent, so a refresh is harmless.
+  if (kuis.formUrl) {
+    await sinkronJawabanForm(kid).catch(() => undefined);
+  }
 
   const [soal, percobaan, jawaban] = await Promise.all([
     listSoal(kid),

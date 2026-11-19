@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { LoadingPanel } from "@/components/loading-panel";
 import { HalamanKuisSiswa } from "@/components/ruang-belajar/halaman-kuis-siswa";
 import { aksesRuang, getKuisDetail, getPercobaanSiswa } from "@/lib/ruang-belajar";
+import { sinkronJawabanForm } from "@/lib/google-form";
 import { requireRole } from "@/lib/session";
 
 export const metadata: Metadata = {
@@ -44,7 +45,16 @@ async function Isi({
   // quiz from another room.
   if (!kuis || !kuis.terbit) notFound();
 
-  const percobaan = await getPercobaanSiswa(kid, user.id);
+  let percobaan = await getPercobaanSiswa(kid, user.id);
+
+  // A form quiz has no in-app attempt: before showing "belum dikerjakan" to a
+  // student who just submitted, pull the responses once. Uses the room
+  // teacher's stored Google token, never the student's.
+  if (kuis.formUrl && !percobaan) {
+    await sinkronJawabanForm(kid).catch(() => undefined);
+    const segar = await getPercobaanSiswa(kid, user.id);
+    percobaan = segar;
+  }
 
   return (
     <HalamanKuisSiswa

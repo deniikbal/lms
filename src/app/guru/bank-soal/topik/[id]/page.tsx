@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/table";
 import { getTopik, listPemakaianTopik, listSoalTopik } from "@/lib/bank-soal";
 import { labelJenisSoalBank } from "@/lib/bank-soal-shared";
-import { listRuangUntukForm } from "@/lib/google-form";
+import { listRuangUntukForm, statusGoogle } from "@/lib/google-form";
 import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/session";
 
@@ -61,10 +61,11 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
   const topik = await getTopik(user.id, topikId);
   if (!topik) notFound();
 
-  const [soal, pemakaian, ruangForm] = await Promise.all([
+  const [soal, pemakaian, ruangForm, terhubung] = await Promise.all([
     listSoalTopik(user.id, topikId),
     listPemakaianTopik(user.id, topikId),
     listRuangUntukForm(user.id, topik.mapelId),
+    statusGoogle(user.id),
   ]);
 
   const dasar = `/guru/bank-soal/topik/${topik.id}`;
@@ -192,6 +193,7 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
               topikId={topik.id}
               namaTopik={topik.nama}
               ruang={ruangForm}
+              terhubung={terhubung}
             />
           ) : null}
           <span className="ml-auto text-[0.7rem] text-muted-foreground tabular-nums">
