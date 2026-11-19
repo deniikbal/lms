@@ -5,6 +5,7 @@ import {
   CheckCheckIcon,
   ChevronRightIcon,
   ClipboardListIcon,
+  ExternalLinkIcon,
   InfoIcon,
   ListChecksIcon,
   PencilIcon,
@@ -143,6 +144,20 @@ export function LembarHasilKuis({
               <p className="text-sm text-muted-foreground">
                 {ruang.mapelNama} · {kuis.jumlahSoal} soal · bobot {kuis.totalBobot}
               </p>
+
+              {kuis.formUrl ? (
+                <p className="text-sm">
+                  <a
+                    href={kuis.formUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-brand underline-offset-4 hover:underline"
+                  >
+                    <ExternalLinkIcon className="size-3" />
+                    Dikerjakan via Google Form
+                  </a>
+                </p>
+              ) : null}
 
               <p
                 className={cn(

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeftIcon, ChevronRightIcon, ClockIcon, ListChecksIcon } from "lucide-react";
+import { ArrowLeftIcon, ChevronRightIcon, ClockIcon, ExternalLinkIcon, ListChecksIcon } from "lucide-react";
 
 import { TombolMulaiKuis } from "@/components/ruang-belajar/tombol-mulai-kuis";
 import { TONE } from "@/components/ruang-belajar/tone";
@@ -138,7 +138,23 @@ export function HalamanKuisSiswa({
       </div>
 
       <div className="space-y-3 rounded-xl border border-border/70 bg-card p-4">
-        {izin.ok ? (
+        {izin.ok && kuis.formUrl ? (
+          <>
+            <p className="text-sm text-foreground">
+              Kuis ini dikerjakan lewat Google Form. Isi NIS Anda dengan benar di
+              form — nilai masuk otomatis ke LMS.
+            </p>
+            <a
+              href={kuis.formUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+            >
+              Buka Google Form
+              <ExternalLinkIcon className="size-4" />
+            </a>
+          </>
+        ) : izin.ok ? (
           <>
             <p className="text-sm text-foreground">
               {sedangBerjalan

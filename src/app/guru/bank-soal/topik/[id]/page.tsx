@@ -18,6 +18,7 @@ import {
 
 import { HapusBankButton } from "@/components/bank-soal/hapus-bank-button";
 import { HapusTopikButton } from "@/components/bank-soal/hapus-topik";
+import { GoogleFormDialog } from "@/components/bank-soal/google-form-dialog";
 import { KotakAngka } from "@/components/kotak-angka";
 import { LoadingPanel } from "@/components/loading-panel";
 import { Kosong, Panel } from "@/components/ruang-belajar/panel";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/table";
 import { getTopik, listPemakaianTopik, listSoalTopik } from "@/lib/bank-soal";
 import { labelJenisSoalBank } from "@/lib/bank-soal-shared";
+import { listRuangUntukForm } from "@/lib/google-form";
 import { cn } from "@/lib/utils";
 import { requireRole } from "@/lib/session";
 
@@ -59,9 +61,10 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
   const topik = await getTopik(user.id, topikId);
   if (!topik) notFound();
 
-  const [soal, pemakaian] = await Promise.all([
+  const [soal, pemakaian, ruangForm] = await Promise.all([
     listSoalTopik(user.id, topikId),
     listPemakaianTopik(user.id, topikId),
+    listRuangUntukForm(user.id, topik.mapelId),
   ]);
 
   const dasar = `/guru/bank-soal/topik/${topik.id}`;
@@ -184,6 +187,13 @@ async function Isi({ params }: { params: Promise<{ id: string }> }) {
             <UploadIcon />
             Tempel teks
           </Button>
+          {ruangForm.length > 0 ? (
+            <GoogleFormDialog
+              topikId={topik.id}
+              namaTopik={topik.nama}
+              ruang={ruangForm}
+            />
+          ) : null}
           <span className="ml-auto text-[0.7rem] text-muted-foreground tabular-nums">
             Diperbarui {topik.diperbarui}
           </span>

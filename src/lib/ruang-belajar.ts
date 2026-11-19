@@ -2271,6 +2271,7 @@ export async function getKuisDetail(
     acak_opsi: boolean;
     tampilkan_nilai: boolean;
     terbit: boolean;
+    form_url: string | null;
     jumlah_soal: number;
     total_bobot: number;
     jumlah_esai: number;
@@ -2280,7 +2281,7 @@ export async function getKuisDetail(
     `select q.id, q.ruang_id, q.judul, q.petunjuk,
             to_char(q.mulai at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as mulai,
             to_char(q.selesai at time zone 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as selesai,
-            q.durasi_menit, q.acak_soal, q.acak_opsi, q.tampilkan_nilai, q.terbit,
+            q.durasi_menit, q.acak_soal, q.acak_opsi, q.tampilkan_nilai, q.terbit, q.form_url,
             (select count(*)::int from soal s where s.kuis_id = q.id) as jumlah_soal,
             (select coalesce(sum(s.bobot), 0)::int from soal s where s.kuis_id = q.id) as total_bobot,
             (select count(*)::int from soal s
@@ -2308,6 +2309,7 @@ export async function getKuisDetail(
     acakOpsi: row.acak_opsi,
     tampilkanNilai: row.tampilkan_nilai,
     terbit: row.terbit,
+    formUrl: row.form_url,
     jumlahSoal: row.jumlah_soal,
     totalBobot: row.total_bobot,
     jumlahEsai: row.jumlah_esai,

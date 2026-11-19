@@ -862,6 +862,8 @@ export type KuisDetail = {
   dibuka: boolean;
   /** Now is past the closing time. */
   lewat: boolean;
+  /** Set when the quiz is answered in Google Forms; attempts sync by webhook. */
+  formUrl: string | null;
 };
 
 export type KuisStatus = "draf" | "belum" | "dibuka" | "ditutup";
